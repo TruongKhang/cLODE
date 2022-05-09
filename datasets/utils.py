@@ -136,7 +136,7 @@ def load_data(
     # loading varies based on dataset type
     x, feature_names = load_x_feature_names(filepath, ngsim_filename)
     print(x.shape)
-    print(len(feature_names))
+    print(feature_names)
 
     # optionally keep it to a reasonable size
     if debug_size is not None:
