@@ -2,19 +2,6 @@ import h5py
 import numpy as np
 import os
 
-
-'''
-Const
-'''
-NGSIM_FILENAME_TO_ID = {
-    'trajdata_i101_trajectories-0750am-0805am.txt': 1,
-    'trajdata_i101_trajectories-0805am-0820am.txt': 2,
-    'trajdata_i101_trajectories-0820am-0835am.txt': 3,
-    'trajdata_i80_trajectories-0400-0415.txt': 4,
-    'trajdata_i80_trajectories-0500-0515.txt': 5,
-    'trajdata_i80_trajectories-0515-0530.txt': 6
-}
-
 '''
 Common 
 '''
@@ -86,14 +73,28 @@ def compute_lengths(arr):
 
 
 def normalize(x, clip_std_multiple=np.inf):
-    mean = np.mean(x, axis=0, keepdims=True)
-    x = x - mean
-    std = np.std(x, axis=0, keepdims=True) + 1e-8
+    n_ids, n_steps, n_feats = x.shape
+    # mean = np.mean(np.mean(x, axis=0, keepdims=True), axis=0, keepdims=True)
+    # x = x - mean
+    x_flatten = np.reshape(x, [-1, n_feats])
+    mean = np.expand_dims(np.mean(x_flatten, axis=0, keepdims=True), axis=0)
+    std = np.expand_dims(np.std(x_flatten, axis=0, keepdims=True), axis=0) + 1e-8
+
     up = std * clip_std_multiple
     lb = - std * clip_std_multiple
     x = np.clip(x, lb, up)
-    x = x / std
+    x = (x - mean) / std
     return x, mean, std
+
+
+def extract_mean_std(x):
+    n_ids, n_steps, n_feats = x.shape
+    # mean = np.mean(np.mean(x, axis=0, keepdims=True), axis=0, keepdims=True)
+    # x = x - mean
+    x_flatten = np.reshape(x, [-1, n_feats])
+    mean = np.mean(x_flatten, axis=0, keepdims=True)
+    std = np.std(x_flatten, axis=0, keepdims=True) + 1e-8
+    return mean, std
 
 
 def normalize_range(x, low, high):
@@ -135,8 +136,6 @@ def load_data(
         clip_std_multiple=np.inf):
     # loading varies based on dataset type
     x, feature_names = load_x_feature_names(filepath, ngsim_filename)
-    print(x.shape)
-    print(feature_names)
 
     # optionally keep it to a reasonable size
     if debug_size is not None:
@@ -147,25 +146,23 @@ def load_data(
         x = x[idxs]
 
     # compute lengths of the samples before anything else b/c this is fragile
-    lengths = compute_lengths(x)
-    print("Lengths: ", len(lengths))
+    # lengths = compute_lengths(x)
 
     # flatten the dataset to (n_samples, n_features)
     # taking only the valid timesteps from each sample
     # i.e., throw out timeseries information
-    xs = []
-    for i, l in enumerate(lengths):
-        # enforce minimum length constraint
-        if l >= min_length:
-            xs.append(x[i, :l])
-    x = np.concatenate(xs)
-    print(x.shape)
+    # xs = []
+    # for i, l in enumerate(lengths):
+    #     # enforce minimum length constraint
+    #     if l >= min_length:
+    #         xs.append(x[i, :l])
+    # x = np.concatenate(xs)
 
     # split into observations and actions
     # redundant because the environment is not able to extract actions
     obs = x
     act_idxs = [i for (i, n) in enumerate(feature_names) if n in act_keys]
-    act = x[:, act_idxs]
+    act = x[:, :, act_idxs]
 
     if normalize_data:
 
