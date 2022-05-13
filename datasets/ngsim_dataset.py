@@ -17,12 +17,14 @@ NGSIM_FILENAME_TO_ID = {
 
 
 class NGSIMDataset(Dataset):
-    def __init__(self, data_path, data_list, act_keys=('accel', 'turn_rate_global'),
-                 normalize_data=True, act_low=-1.0, act_high=1.0, clip_std_multiple=10.0):
+    def __init__(self, data_path, data_list, act_keys=('accel', 'turn_rate_global'), min_traj_length=50,
+                 max_traj_length=None, normalize_data=True, act_low=-1.0, act_high=1.0, clip_std_multiple=np.inf):
         self.data_path = data_path
         self.data_list = data_list
         self.num_files = len(data_list)
         self.act_keys = act_keys
+        self.min_traj_length = min_traj_length
+        self.max_traj_length = max_traj_length
         self.normalize_data = normalize_data
         self.act_low = act_low
         self.act_high = act_high
@@ -42,7 +44,9 @@ class NGSIMDataset(Dataset):
                 self.data_statistics[file_id] = utils.extract_mean_std(traj_data) # save mean and std in each data file
                 n_trajs = traj_data.shape[0]
                 for i in range(n_trajs):
-                    self.mapping_idx[idx] = file_id, i
+                    length = np.sum(np.sum(traj_data[i], axis=1) != 0, axis=0)
+                    if length > min_traj_length:
+                        self.mapping_idx[idx] = file_id, i
                     idx += 1
             else:
                 raise ValueError('invalid key to trajectory data: {}'.format(file_name))
@@ -55,16 +59,33 @@ class NGSIMDataset(Dataset):
         traj_data = self.database[file_id][traj_id]
         observations = np.array(traj_data, dtype=np.float32)
         # actions = observations[:, self.act_idxs]
+        length = np.where(np.sum(np.abs(observations), axis=1) == 0)[0][0]
+        observations = observations[:length]
+        if self.max_traj_length is not None:
+            observations = observations[:self.max_traj_length]
+        actions = observations[:, self.act_idxs]
+        mask = np.sum(np.abs(observations), axis=1, keepdims=True) > 0
+        time_steps = np.arange(0, observations.shape[0], dtype=np.float32) / observations.shape[0]
+        observed_mask = np.repeat(mask.astype(np.float32), observations.shape[1], axis=1)
+        mask_predicted_data = np.repeat(mask.astype(np.float32), actions.shape[1], axis=1)
 
-        timesteps = np.where(np.sum(observations, axis=1) > 0)[0]
-        obs = observations[timesteps, :]
-        acts = obs[:, self.act_idxs]
         if self.normalize_data:
             mean, std = self.data_statistics[file_id]
-            obs = np.clip(obs, - std * self.clip_std_multiple, std * self.clip_std_multiple)
-            obs = (obs - mean) / std
-            acts = utils.normalize_range(acts, self.act_low, self.act_high)
+            observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
+            observations = (observations - mean) / std
+            acts = utils.normalize_range(actions, self.act_low, self.act_high)
 
-        return {"obs": np.expand_dims(obs, axis=0),
-                "acts": np.expand_dims(acts, axis=0),
-                "timesteps": np.expand_dims(timesteps, axis=0)}
+        return {"observed_data": np.expand_dims(observations, axis=0),
+                "observed_tp": np.expand_dims(time_steps, axis=0),
+                "data_to_predict": np.expand_dims(actions, axis=0),
+                "tp_to_predict": np.expand_dims(time_steps, axis=0),
+                "observed_mask": np.expand_dims(observed_mask, axis=0),
+                "mask_predicted_data": np.expand_dims(mask_predicted_data, axis=0)}
+
+
+if __name__ == '__main__':
+    ngsim = NGSIMDataset("/home/khangtg/Documents/course/AI618_unsupervised_and_generative_models/code/ngsim_env/data/trajectories/ngsim.h5",
+                         ['trajdata_i101_trajectories-0750am-0805am.txt'])
+    print(ngsim.data_statistics)
+    for key, val in ngsim[10].items():
+        print(key, val.shape)
