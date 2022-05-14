@@ -179,31 +179,26 @@ def normalize_range(x, low, high):
 #     return data, time_steps, mask
 #
 #
-# def split_data_extrap(data_dict, dataset=""):
-#     # device = get_device(data_dict["data"])
-#
-#     n_observed_tp = data_dict["data"].size(1) // 2
-#     if dataset == "hopper":
-#         n_observed_tp = data_dict["data"].size(1) // 3
-#
-#     split_dict = {"observed_data": data_dict["data"][:, :n_observed_tp, :].clone(),
-#                   "observed_tp": data_dict["time_steps"][:n_observed_tp].clone(),
-#                   "data_to_predict": data_dict["data"][:, n_observed_tp:, :].clone(),
-#                   "tp_to_predict": data_dict["time_steps"][n_observed_tp:].clone()}
-#
-#     split_dict["observed_mask"] = None
-#     split_dict["mask_predicted_data"] = None
-#     split_dict["labels"] = None
-#
-#     if ("mask" in data_dict) and (data_dict["mask"] is not None):
-#         split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].clone()
-#         split_dict["mask_predicted_data"] = data_dict["mask"][:, n_observed_tp:].clone()
-#
-#     if ("labels" in data_dict) and (data_dict["labels"] is not None):
-#         split_dict["labels"] = data_dict["labels"].clone()
-#
-#     split_dict["mode"] = "extrap"
-#     return split_dict
+def split_data_extrap(data_dict):
+    # device = get_device(data_dict["data"])
+
+    n_observed_tp = data_dict["observations"].shape[0] // 2
+
+    split_dict = {"observed_data": data_dict["observations"][:n_observed_tp, :],
+                  "observed_tp": data_dict["time_steps"][:n_observed_tp].clone(),
+                  "data_to_predict": data_dict["data"][:, n_observed_tp:, :].clone(),
+                  "tp_to_predict": data_dict["time_steps"][n_observed_tp:].clone()}
+
+    split_dict["observed_mask"] = None
+    split_dict["mask_predicted_data"] = None
+    split_dict["labels"] = None
+
+    if ("mask" in data_dict) and (data_dict["mask"] is not None):
+        split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].clone()
+        split_dict["mask_predicted_data"] = data_dict["mask"][:, n_observed_tp:].clone()
+
+    # split_dict["mode"] = "extrap"
+    return split_dict
 
 
 # def split_data_interp(data_dict):

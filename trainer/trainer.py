@@ -1,3 +1,9 @@
+import torch
+
+from .base_trainer import BaseTrainer
+from utils import to_device
+
+
 class Trainer(BaseTrainer):
     """
     Trainer class
@@ -6,20 +12,9 @@ class Trainer(BaseTrainer):
                  valid_data_loader=None, lr_scheduler=None):
         super().__init__(model, criterion, metric_ftns, optimizer, config)
         self.config = config
-        # if self.config['name'] == 'UpgradedModel':
-        #    self.vgg16 = Vgg16(requires_grad=False).to(self.device)
-        # else:
-        self.vgg16 = None
         self.data_loader = data_loader
-        # if len_epoch is None:
-            # epoch-based training
         self.len_epoch = 0
-        for loader in self.data_loader:
-            self.len_epoch += len(loader.dataset)
-        # else:
-        #     # iteration-based training
-        #     self.data_loader = inf_loop(data_loader)
-        #     self.len_epoch = len_epoch
+        self.len_epoch += len(data_loader.dataset)
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler

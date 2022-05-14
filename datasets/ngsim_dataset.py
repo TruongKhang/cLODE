@@ -3,7 +3,7 @@ import h5py
 from torch.utils.data import Dataset
 
 
-import utils
+import datasets.utils as utils
 
 
 NGSIM_FILENAME_TO_ID = {
@@ -73,7 +73,7 @@ class NGSIMDataset(Dataset):
             mean, std = self.data_statistics[file_id]
             observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
             observations = (observations - mean) / std
-            acts = utils.normalize_range(actions, self.act_low, self.act_high)
+            actions = utils.normalize_range(actions, self.act_low, self.act_high)
 
         return {"observed_data": np.expand_dims(observations, axis=0),
                 "observed_tp": np.expand_dims(time_steps, axis=0),
