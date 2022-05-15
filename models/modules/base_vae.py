@@ -82,8 +82,8 @@ class VAE_Baseline(nn.Module):
         # Make predictions for all the points
         pred_y, info = self.get_reconstruction(batch_dict["tp_to_predict"],
                                                batch_dict["observed_data"], batch_dict["observed_tp"],
-                                               mask=batch_dict["observed_mask"], n_traj_samples=n_traj_samples,
-                                               mode=batch_dict["mode"])
+                                               mask=batch_dict["observed_mask"], n_traj_samples=n_traj_samples) #,
+                                               # mode=batch_dict["mode"])
 
         # print("get_reconstruction done -- computing likelihood")
         fp_mu, fp_std, fp_enc = info["first_point"]

@@ -6,7 +6,7 @@
 import torch
 import torch.nn as nn
 
-import utils as utils
+from .utils import init_network_weights
 
 
 #####################################################################################################
@@ -22,7 +22,7 @@ class ODEFunc(nn.Module):
         self.input_dim = input_dim
         self.device = device
 
-        utils.init_network_weights(ode_func_net)
+        init_network_weights(ode_func_net)
         self.gradient_net = ode_func_net
 
     def forward(self, t_local, y, backwards=False):

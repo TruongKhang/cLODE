@@ -90,7 +90,7 @@ class Trainer(BaseTrainer):
         self.valid_metrics.reset()
         with torch.no_grad():
             for batch_idx, batch_dict in enumerate(self.valid_data_loader):
-                batch_dict = to_device(batch_dict)
+                batch_dict = to_device(batch_dict, self.device)
 
                 outputs = self.model.compute_all_losses(batch_dict, n_traj_samples=3, kl_coef=1.0)
 

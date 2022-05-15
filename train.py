@@ -42,7 +42,7 @@ def prepare_device(n_gpu_use):
 
 def main(config):
     # setup GPU device if available, move model into configured device
-    device, device_ids = prepare_device(config['n_gpu'])
+    device, device_ids = prepare_device(config['n_gpus'])
 
     # setup data_loader instances
     dataloader = NGSIMLoader(config["dataset"])
@@ -52,7 +52,7 @@ def main(config):
     obsrv_std = torch.tensor([0.01]).to(device)
     z0_prior = Normal(torch.tensor([0.0]).to(device), torch.tensor([1.]).to(device))
 
-    model = create_LatentODE_model(config["model"], train_dataloader.dataset.input_dims,
+    model = create_LatentODE_model(config.model, config.model.input_dim,
                                    z0_prior, obsrv_std, device)
     # self.model = model.to(self.device)
     if len(device_ids) > 1:
@@ -91,8 +91,7 @@ if __name__ == '__main__':
         CustomArgs(['--lr', '--learning_rate'], type=float, target='optimizer;args;lr'),
         CustomArgs(['--bs', '--batch_size'], type=int, target='data_loader;args;batch_size')
     ]
-    config = lower_config(get_cfg_defaults())
-    # print(config['input_shape'])
+    config = get_cfg_defaults()
     parse_args = args.parse_args()
     main(config)
     # if not parse_args.retrain:

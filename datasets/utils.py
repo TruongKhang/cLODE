@@ -111,8 +111,8 @@ def normalize(x, clip_std_multiple=np.inf):
 
 
 def normalize_range(x, low, high):
-    low = np.array(low)
-    high = np.array(high)
+    low = np.array(low).reshape(1, -1)
+    high = np.array(high).reshape(1, -1)
     mean = (high + low) / 2.
     half_range = (high - low) / 2.
     x = (x - mean) / half_range
@@ -192,7 +192,7 @@ def split_data_extrap(data_dict):
 
     # split_dict["observed_mask"] = None
     # split_dict["mask_predicted_data"] = None
-    # split_dict["labels"] = None
+    split_dict["labels"] = None
 
     # if ("mask" in data_dict) and (data_dict["mask"] is not None):
     split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].repeat(1, 1, data_dict["obs_data"].shape[-1])

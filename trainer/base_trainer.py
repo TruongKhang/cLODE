@@ -1,7 +1,9 @@
+import os.path
+
 import torch
 import torch.nn as nn
 from abc import abstractmethod
-from torch.utils.tensorboard import SummaryWriter
+from tensorboardX import SummaryWriter
 from loguru import logger
 
 
@@ -22,8 +24,12 @@ class BaseTrainer:
         self.start_epoch = 1
 
         self.checkpoint_dir = config["save_dir"]
+        if not os.path.exists(self.checkpoint_dir):
+            os.makedirs(self.checkpoint_dir)
 
         # setup visualization writer instance
+        if not os.path.exists(config["log_dir"]):
+            os.makedirs(config["log_dir"])
         self.writer = SummaryWriter(config["log_dir"])
 
         if cfg_trainer["resume"] is not None:
@@ -70,7 +76,7 @@ class BaseTrainer:
             'optimizer': self.optimizer.state_dict(),
             'config': self.config
         }
-        filename = str(self.checkpoint_dir / 'checkpoint-epoch{}.ckpt'.format(epoch))
+        filename = '{}/checkpoint-epoch{}.ckpt'.format(self.checkpoint_dir, epoch)
         torch.save(state, filename)
         logger.info("Saving checkpoint: {} ...".format(filename))
 

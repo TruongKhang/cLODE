@@ -28,6 +28,8 @@ def to_device(data, device):
         return data.to(device)
     elif isinstance(data, str):
         return data
+    elif data is None:
+        return data
     else:
         raise NotImplementedError("invalid input type {} for tensor2numpy".format(type(data)))
 

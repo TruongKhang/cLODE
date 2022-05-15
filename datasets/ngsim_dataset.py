@@ -91,9 +91,9 @@ class NGSIMDataset(Dataset):
         #         "tp_to_predict": np.expand_dims(time_steps, axis=0),
         #         "observed_mask": np.expand_dims(observed_mask, axis=0),
         #         "mask_predicted_data": np.expand_dims(mask_predicted_data, axis=0)}
-        return {"obs_data": torch.from_numpy(observations),
+        return {"obs_data": torch.from_numpy(observations).float(),
                 "time_steps": torch.from_numpy(time_steps),
-                "act_data": torch.from_numpy(actions)}
+                "act_data": torch.from_numpy(actions).float()}
 
 
 if __name__ == '__main__':
