@@ -1,6 +1,7 @@
 import h5py
 import numpy as np
 import os
+import torch
 
 NGSIM_FILENAME_TO_ID = {
     'trajdata_i101_trajectories-0750am-0805am.txt': '1',
@@ -182,20 +183,20 @@ def normalize_range(x, low, high):
 def split_data_extrap(data_dict):
     # device = get_device(data_dict["data"])
 
-    n_observed_tp = data_dict["observations"].shape[0] // 2
+    n_observed_tp = data_dict["time_steps"].shape[0] // 2
 
-    split_dict = {"observed_data": data_dict["observations"][:n_observed_tp, :],
+    split_dict = {"observed_data": data_dict["obs_data"][:, :n_observed_tp, :],
                   "observed_tp": data_dict["time_steps"][:n_observed_tp].clone(),
-                  "data_to_predict": data_dict["data"][:, n_observed_tp:, :].clone(),
-                  "tp_to_predict": data_dict["time_steps"][n_observed_tp:].clone()}
+                  "data_to_predict": data_dict["act_data"][:, n_observed_tp:, :],
+                  "tp_to_predict": data_dict["time_steps"][n_observed_tp:]}
 
-    split_dict["observed_mask"] = None
-    split_dict["mask_predicted_data"] = None
-    split_dict["labels"] = None
+    # split_dict["observed_mask"] = None
+    # split_dict["mask_predicted_data"] = None
+    # split_dict["labels"] = None
 
-    if ("mask" in data_dict) and (data_dict["mask"] is not None):
-        split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].clone()
-        split_dict["mask_predicted_data"] = data_dict["mask"][:, n_observed_tp:].clone()
+    # if ("mask" in data_dict) and (data_dict["mask"] is not None):
+    split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].repeat(1, 1, data_dict["obs_data"].shape[-1])
+    split_dict["mask_predicted_data"] = data_dict["mask"][:, n_observed_tp:].repeat(1, 1, data_dict["act_data"].shape[-1])
 
     # split_dict["mode"] = "extrap"
     return split_dict
@@ -229,7 +230,7 @@ def split_data_extrap(data_dict):
 #     mask = data_dict["observed_mask"]
 #
 #     if mask is None:
-#         mask = torch.ones_like(data).to(get_device(data))
+#         mask = torch.ones_like(data)
 #
 #     data_dict["observed_mask"] = mask
 #     return data_dict
@@ -273,34 +274,34 @@ def split_data_extrap(data_dict):
 #     return new_data_dict
 
 
-# def split_and_subsample_batch(data_dict):
-#     # if data_type == "train":
-#     #     # Training set
-#     #     if args.extrap:
-#     #         processed_dict = split_data_extrap(data_dict)
-#     #     else:
-#     #         processed_dict = split_data_interp(data_dict)
-#     #
-#     # else:
-#     #     # Test set
-#     #     if args.extrap:
-#     #         processed_dict = split_data_extrap(data_dict, dataset=args.dataset)
-#     #     else:
-#     processed_dict = split_data_interp(data_dict)
-#
-#     # add mask
-#     processed_dict = add_mask(processed_dict)
-#
-#     # Subsample points or cut out the whole section of the timeline
-#     # if (args.sample_tp is not None) or (args.cut_tp is not None):
-#     #     processed_dict = subsample_observed_data(processed_dict,
-#     #                                              n_tp_to_sample=args.sample_tp,
-#     #                                              n_points_to_cut=args.cut_tp)
-#
-#     # if (args.sample_tp is not None):
-#     # 	processed_dict = subsample_observed_data(processed_dict,
-#     # 		n_tp_to_sample = args.sample_tp)
-#     return processed_dict
+def split_and_subsample_batch(data_dict):
+    # if data_type == "train":
+    #     # Training set
+    #     if args.extrap:
+    #         processed_dict = split_data_extrap(data_dict)
+    #     else:
+    #         processed_dict = split_data_interp(data_dict)
+    #
+    # else:
+    #     # Test set
+    #     if args.extrap:
+    #         processed_dict = split_data_extrap(data_dict, dataset=args.dataset)
+    #     else:
+    processed_dict = split_data_extrap(data_dict)
+
+    # add mask
+    # processed_dict = add_mask(processed_dict)
+
+    # Subsample points or cut out the whole section of the timeline
+    # if (args.sample_tp is not None) or (args.cut_tp is not None):
+    #     processed_dict = subsample_observed_data(processed_dict,
+    #                                              n_tp_to_sample=args.sample_tp,
+    #                                              n_points_to_cut=args.cut_tp)
+
+    # if (args.sample_tp is not None):
+    # 	processed_dict = subsample_observed_data(processed_dict,
+    # 		n_tp_to_sample = args.sample_tp)
+    return processed_dict
 
 
 # if __name__ == '__main__':

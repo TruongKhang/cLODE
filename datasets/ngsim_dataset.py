@@ -1,5 +1,6 @@
 import numpy as np
 import h5py
+import torch
 from torch.utils.data import Dataset
 
 
@@ -59,15 +60,23 @@ class NGSIMDataset(Dataset):
         traj_data = self.database[file_id][traj_id]
         observations = np.array(traj_data, dtype=np.float32)
         # actions = observations[:, self.act_idxs]
-        length = np.where(np.sum(np.abs(observations), axis=1) == 0)[0][0]
-        observations = observations[:length]
-        if self.max_traj_length is not None:
-            observations = observations[:self.max_traj_length]
+
+        # time_steps = np.arange(0, observations.shape[1])
+        time_steps = np.where(np.sum(np.abs(observations), axis=1) > 0)[0]
+        n_sample_ts = int(np.random.rand() * len(time_steps)) + 2
+        time_steps = time_steps[:n_sample_ts]
+
+        observations = observations[time_steps, :]
         actions = observations[:, self.act_idxs]
-        mask = np.sum(np.abs(observations), axis=1, keepdims=True) > 0
-        time_steps = np.arange(0, observations.shape[0], dtype=np.float32) / observations.shape[0]
-        observed_mask = np.repeat(mask.astype(np.float32), observations.shape[1], axis=1)
-        mask_predicted_data = np.repeat(mask.astype(np.float32), actions.shape[1], axis=1)
+        # length = np.where(np.sum(np.abs(observations), axis=1) == 0)[0][0]
+        # observations = observations[:length]
+        # if self.max_traj_length is not None:
+        #     observations = observations[:self.max_traj_length]
+        # actions = observations[:, self.act_idxs]
+        # mask = np.sum(np.abs(observations), axis=1, keepdims=True) > 0
+        # time_steps = np.arange(0, observations.shape[0], dtype=np.float32) / observations.shape[0]
+        # observed_mask = np.repeat(mask.astype(np.float32), observations.shape[1], axis=1)
+        # mask_predicted_data = np.repeat(mask.astype(np.float32), actions.shape[1], axis=1)
 
         if self.normalize_data:
             mean, std = self.data_statistics[file_id]
@@ -75,12 +84,15 @@ class NGSIMDataset(Dataset):
             observations = (observations - mean) / std
             actions = utils.normalize_range(actions, self.act_low, self.act_high)
 
-        return {"observed_data": np.expand_dims(observations, axis=0),
-                "observed_tp": np.expand_dims(time_steps, axis=0),
-                "data_to_predict": np.expand_dims(actions, axis=0),
-                "tp_to_predict": np.expand_dims(time_steps, axis=0),
-                "observed_mask": np.expand_dims(observed_mask, axis=0),
-                "mask_predicted_data": np.expand_dims(mask_predicted_data, axis=0)}
+        # return {"observed_data": np.expand_dims(observations, axis=0),
+        #         "observed_tp": np.expand_dims(time_steps, axis=0),
+        #         "data_to_predict": np.expand_dims(actions, axis=0),
+        #         "tp_to_predict": np.expand_dims(time_steps, axis=0),
+        #         "observed_mask": np.expand_dims(observed_mask, axis=0),
+        #         "mask_predicted_data": np.expand_dims(mask_predicted_data, axis=0)}
+        return {"obs_data": torch.from_numpy(observations),
+                "time_steps": torch.from_numpy(time_steps),
+                "act_data": torch.from_numpy(actions)}
 
 
 if __name__ == '__main__':
