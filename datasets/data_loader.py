@@ -1,5 +1,6 @@
+import numpy as np
 import torch
-from torch.utils.data import DataLoader, random_split
+from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
 
 from datasets.utils import split_and_subsample_batch
 from datasets.ngsim_dataset import NGSIMDataset
@@ -50,11 +51,16 @@ class NGSIMLoader(object):
     def split_train_test(self):
         test_ratio = self.cfg_data["test_ratio"]
         test_size = int(len(self.ngsim_dataset) * test_ratio)
-        train_ngsim, test_ngsim = random_split(self.ngsim_dataset, [len(self.ngsim_dataset) - test_size, test_size])
-        train_dataloader = DataLoader(train_ngsim, batch_size=self.cfg_data["batch_size"], shuffle=True, num_workers=4,
+        indices = np.arange(len(self.ngsim_dataset))
+        np.random.shuffle(indices)
+        test_sampler = SubsetRandomSampler(indices[:test_size])
+        train_sampler = SubsetRandomSampler(indices[test_size:])
+        # train_ngsim, test_ngsim = random_split(self.ngsim_dataset, [len(self.ngsim_dataset) - test_size, test_size])
+        train_dataloader = DataLoader(self.ngsim_dataset, batch_size=self.cfg_data["batch_size"], shuffle=True,
+                                      sampler=train_sampler, num_workers=4,
                                       collate_fn=variable_time_collate_fn, pin_memory=True)
-        test_dataloader = DataLoader(test_ngsim, batch_size=1, shuffle=False, num_workers=4,
-                                     collate_fn=variable_time_collate_fn, pin_memory=True)
+        test_dataloader = DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, sampler=test_sampler,
+                                     num_workers=4, collate_fn=variable_time_collate_fn, pin_memory=True)
 
         return train_dataloader, test_dataloader
 
