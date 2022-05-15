@@ -1,27 +1,27 @@
 import torch
+from loguru import logger
 
 from .base_trainer import BaseTrainer
-from utils import to_device
+from utils import to_device, MetricTracker
 
 
 class Trainer(BaseTrainer):
     """
     Trainer class
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config, data_loader,
+    def __init__(self, model, optimizer, config, device, data_loader,
                  valid_data_loader=None, lr_scheduler=None):
-        super().__init__(model, criterion, metric_ftns, optimizer, config)
+        super().__init__(model, optimizer, config, device)
         self.config = config
         self.data_loader = data_loader
-        self.len_epoch = 0
-        self.len_epoch += len(data_loader.dataset)
+        self.len_epoch = len(data_loader)
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
         self.log_step = 50 #int(np.sqrt(data_loader.batch_size))
 
-        self.train_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
-        self.valid_metrics = MetricTracker('loss', *[m.__name__ for m in self.metric_ftns], writer=self.writer)
+        self.train_metrics = MetricTracker('loss', 'rmse')
+        self.valid_metrics = MetricTracker('loss', 'rmse')
 
     def _train_epoch(self, epoch):
         """
@@ -31,46 +31,50 @@ class Trainer(BaseTrainer):
         """
         self.model.train()
         self.train_metrics.reset()
-        batch_idx, current = 0, 0
-        for loader in self.data_loader:
-            for data, target in loader:
-                data, target = to_device(data, self.device), to_device(target, self.device)
+        # batch_idx, current = 0, 0
 
-                self.optimizer.zero_grad()
-                output = self.model(data)
-                if self.vgg16 is None:
-                    loss = self.criterion(output, target)
-                else:
-                    loss = self.criterion(output, target, vgg=self.vgg16)
-                loss.backward()
-                self.optimizer.step()
+        for batch_idx, batch_dict in enumerate(self.data_loader):
+            batch_dict = to_device(batch_dict, self.device)
+            wait_until_kl_inc = 10
+            if epoch < wait_until_kl_inc:
+                kl_coef = 0.
+            else:
+                kl_coef = (1 - 0.99 ** (epoch - wait_until_kl_inc))
 
-                self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+            self.optimizer.zero_grad()
+            outputs = self.model.compute_all_losses(batch_dict, n_traj_samples=3, kl_coef=kl_coef)
+            loss = outputs["loss"]
+            loss.backward()
+            self.optimizer.step()
 
-                self.train_metrics.update('loss', loss.item(), n=loader.batch_size)
-                for met in self.metric_ftns:
-                    self.train_metrics.update(met.__name__, met(output, target).item(), n=loader.batch_size)
+            # self.writer.set_step((epoch - 1) * self.len_epoch + batch_idx)
+            self.writer.add_scalar("training loss", loss.item(), (epoch - 1) * self.len_epoch + batch_idx)
+            self.writer.add_scalar("training mse", outputs["mse"].item(), (epoch - 1) * self.len_epoch + batch_idx)
 
-                if batch_idx % self.log_step == 0:
-                    self.logger.debug('Train Epoch: {} {} Loss: {:.6f} RMSE: {:.6f}'.format(
-                        epoch,
-                        self._progress(current),
-                        self.train_metrics.avg('loss'),
-                        self.train_metrics.avg(self.metric_ftns[1].__name__)
-                    ))
-                    # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+            self.train_metrics.update('loss', loss.item(), n=self.data_loader.batch_size)
+            self.train_metrics.update("rmse", torch.sqrt(outputs["mse"]).item(), n=self.data_loader.batch_size)
 
-                if batch_idx == self.len_epoch:
-                    break
-                batch_idx += 1
-                current += loader.batch_size
+            if batch_idx % self.log_step == 0:
+                logger.debug('Train Epoch: {} {} Loss: {:.6f} RMSE: {:.6f}'.format(
+                    epoch,
+                    self._progress(batch_idx),
+                    self.train_metrics.avg('loss'),
+                    self.train_metrics.avg('rmse')
+                ))
+                # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+
+            # if batch_idx == self.len_epoch:
+            #     break
+            # batch_idx += 1
+            # current += loader.batch_size
+
         # for batch_idx, (data, target) in enumerate(self.data_loader):
 
         log = self.train_metrics.result()
 
         if self.do_validation:
             val_log = self._valid_epoch(epoch)
-            log.update(**{'val_'+k : v for k, v in val_log.items()})
+            log.update(**{'val_'+k: v for k, v in val_log.items()})
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
@@ -85,26 +89,16 @@ class Trainer(BaseTrainer):
         self.model.eval()
         self.valid_metrics.reset()
         with torch.no_grad():
-            batch_idx = 0
-            for loader in self.valid_data_loader:
-                for data, target in loader:
-                    data, target = to_device(data, self.device), to_device(target, self.device)
+            for batch_idx, batch_dict in enumerate(self.valid_data_loader):
+                batch_dict = to_device(batch_dict)
 
-                    output = self.model(data)
-                    if self.vgg16 is None:
-                        loss = self.criterion(output, target)
-                    else:
-                        loss = self.criterion(output, target, vgg=self.vgg16)
+                outputs = self.model.compute_all_losses(batch_dict, n_traj_samples=3, kl_coef=1.0)
 
-                    self.writer.set_step((epoch - 1) * len(self.valid_data_loader) + batch_idx, 'valid')
-                    self.valid_metrics.update('loss', loss.item())
-                    for met in self.metric_ftns:
-                        self.valid_metrics.update(met.__name__, met(output, target).item())
-                    batch_idx += 1
-            # for batch_idx, (data, target) in enumerate(self.valid_data_loader):
+                self.writer.add_scalar("test loss", outputs["loss"].item(), (epoch - 1) * len(self.valid_data_loader) + batch_idx)
+                self.writer.add_scalar("test mse", outputs["mse"].item(), (epoch - 1) * len(self.valid_data_loader) + batch_idx)
 
-                # print(loss.item(), met(output, target).item())
-                # self.writer.add_image('input', make_grid(data.cpu(), nrow=8, normalize=True))
+                self.valid_metrics.update("loss", outputs["loss"].item())
+                self.valid_metrics.update("rmse", torch.sqrt(outputs["mse"]).item())
 
         # add histogram of model parameters to the tensorboard
         # for name, p in self.model.named_parameters():

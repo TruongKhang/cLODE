@@ -18,27 +18,28 @@ NGSIM_FILENAME_TO_ID = {
 
 
 class NGSIMDataset(Dataset):
-    def __init__(self, data_path, data_list, act_keys=('accel', 'turn_rate_global'), min_traj_length=50,
-                 max_traj_length=None, normalize_data=True, act_low=-1.0, act_high=1.0, clip_std_multiple=np.inf):
-        self.data_path = data_path
-        self.data_list = data_list
-        self.num_files = len(data_list)
-        self.act_keys = act_keys
-        self.min_traj_length = min_traj_length
-        self.max_traj_length = max_traj_length
-        self.normalize_data = normalize_data
-        self.act_low = act_low
-        self.act_high = act_high
-        self.clip_std_multiple = clip_std_multiple
+    def __init__(self, config):
+        self.config = config
+        self.data_path = config["data_path"]
+        self.data_list = config["data_list"]
+        self.num_files = len(self.data_list)
+        self.act_keys = config["act_keys"]
+        self.min_traj_length = config["min_traj_length"]
+        # self.max_traj_length = max_traj_length
+        self.normalize_data = config["normalize_data"]
+        self.act_low = config["act_low"]
+        self.act_high = config["act_high"]
+        self.clip_std_multiple = config["clip_std_multiple"]
 
-        self.database = h5py.File(data_path, 'r')
+        self.database = h5py.File(self.data_path, 'r')
         self.feature_names = self.database.attrs["feature_names"]
-        self.act_idxs = [i for (i, n) in enumerate(self.feature_names) if n in act_keys]
+        self.input_dims = len(self.feature_names)
+        self.act_idxs = [i for (i, n) in enumerate(self.feature_names) if n in self.act_keys]
 
         self.mapping_idx = {}
         self.data_statistics = {}
         idx = 0
-        for file_name in data_list:
+        for file_name in self.data_list:
             file_id = NGSIM_FILENAME_TO_ID[file_name]
             if file_id in self.database.keys():
                 traj_data = self.database[file_id]
@@ -46,7 +47,7 @@ class NGSIMDataset(Dataset):
                 n_trajs = traj_data.shape[0]
                 for i in range(n_trajs):
                     length = np.sum(np.sum(traj_data[i], axis=1) != 0, axis=0)
-                    if length > min_traj_length:
+                    if length > self.min_traj_length:
                         self.mapping_idx[idx] = file_id, i
                     idx += 1
             else:

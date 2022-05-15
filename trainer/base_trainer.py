@@ -9,20 +9,11 @@ class BaseTrainer:
     """
     Base class for all trainers
     """
-    def __init__(self, model, criterion, metric_ftns, optimizer, config):
+    def __init__(self, model, optimizer, config, device):
         self.config = config
-        # self.logger = config.get_logger('trainer', config['trainer']['verbosity'])
-
-        # setup GPU device if available, move model into configured device
-        self.device, device_ids = self._prepare_device(config['n_gpu'])
-        # print("Device: ", self.device, "Device ids: ", device_ids)
-        self.model = model.to(self.device)
-        if len(device_ids) > 1:
-            self.model = nn.DataParallel(model, device_ids=device_ids)
-
-        self.criterion = criterion
-        self.metric_ftns = metric_ftns
+        self.model = model
         self.optimizer = optimizer
+        self.device = device
 
         cfg_trainer = config['trainer']
         self.epochs = cfg_trainer['epochs']
@@ -50,7 +41,6 @@ class BaseTrainer:
         """
         Full training logic
         """
-        not_improved_count = 0
         for epoch in range(self.start_epoch, self.epochs + 1):
             result = self._train_epoch(epoch)
 
@@ -65,23 +55,6 @@ class BaseTrainer:
             # save model
             if epoch % self.save_period == 0:
                 self._save_checkpoint(epoch)
-
-    def _prepare_device(self, n_gpu_use):
-        """
-        setup GPU device if available, move model into configured device
-        """
-        n_gpu = torch.cuda.device_count()
-        if n_gpu_use > 0 and n_gpu == 0:
-            logger.warning("Warning: There\'s no GPU available on this machine,"
-                                "training will be performed on CPU.")
-            n_gpu_use = 0
-        if n_gpu_use > n_gpu:
-            logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
-                                "on this machine.".format(n_gpu_use, n_gpu))
-            n_gpu_use = n_gpu
-        device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-        list_ids = list(range(n_gpu_use))
-        return device, list_ids
 
     def _save_checkpoint(self, epoch):
         """
