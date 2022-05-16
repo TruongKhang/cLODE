@@ -48,7 +48,7 @@ def main(config):
     # train_dataloader, test_dataloader = dataloader.split_train_test()
 
     # build model architecture, then print to console
-    obsrv_std = torch.tensor([0.01]).to(device)
+    obsrv_std = torch.tensor([config.model.observ_std]).to(device)
     z0_prior = Normal(torch.tensor([0.0]).to(device), torch.tensor([1.]).to(device))
 
     model = create_LatentODE_model(config.model, config.model.input_dim,

@@ -82,6 +82,8 @@ class NGSIMDataset(Dataset):
 
         if self.normalize_data:
             mean, std = self.data_statistics
+            assert mean.shape[-1] == observations.shape[-1]
+            assert std.shape[-1] == observations.shape[-1]
             observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
             observations = (observations - mean) / std
             actions = utils.normalize_range(actions, self.act_low, self.act_high)

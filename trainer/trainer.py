@@ -14,7 +14,7 @@ class Trainer(BaseTrainer):
     def __init__(self, model, optimizer, config, device, lr_scheduler=None):
         super().__init__(model, optimizer, config, device)
         self.config = config
-        self.data_files = config["list_dataset_files"]
+        self.data_files = config["dataset"]["list_dataset_files"]
         # self.data_loader = data_loader
         # self.len_epoch = len(data_loader)
         # self.valid_data_loader = valid_data_loader
