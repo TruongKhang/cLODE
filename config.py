@@ -7,9 +7,12 @@ _C.save_dir = "logs/checkpoints"
 
 _C.dataset = CN()
 _C.dataset.data_path = "datasets/ngsim.h5"
-_C.dataset.data_list = ["trajdata_i101_trajectories-0750am-0805am.txt", "trajdata_i101_trajectories-0805am-0820am.txt",
-                        "trajdata_i101_trajectories-0820am-0835am.txt", "trajdata_i80_trajectories-0400-0415.txt",
-                        "trajdata_i80_trajectories-0500-0515.txt", "trajdata_i80_trajectories-0515-0530.txt"]
+_C.dataset.list_dataset_files = ["trajdata_i101_trajectories-0750am-0805am.txt",
+                                 "trajdata_i101_trajectories-0805am-0820am.txt",
+                                 "trajdata_i101_trajectories-0820am-0835am.txt",
+                                 "trajdata_i80_trajectories-0400-0415.txt",
+                                 "trajdata_i80_trajectories-0500-0515.txt",
+                                 "trajdata_i80_trajectories-0515-0530.txt"]
 _C.dataset.act_keys = ['accel', 'turn_rate_global']
 _C.dataset.batch_size = 50
 _C.dataset.test_ratio = 0.1
@@ -17,7 +20,7 @@ _C.dataset.min_traj_length = 250
 _C.dataset.normalize_data = True
 _C.dataset.act_low = [-4.0, -0.15]
 _C.dataset.act_high = [4.0, 0.15]
-_C.dataset.clip_std_multiple = 1e2
+_C.dataset.clip_std_multiple = 10
 
 _C.model = CN()
 _C.model.input_dim = 66

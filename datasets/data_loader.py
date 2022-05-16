@@ -43,10 +43,10 @@ def variable_time_collate_fn(batch):
 
 
 class NGSIMLoader(object):
-    def __init__(self, cfg_data):
+    def __init__(self, cfg_data, dataset_file):
 
         self.cfg_data = cfg_data
-        self.ngsim_dataset = NGSIMDataset(cfg_data)
+        self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file)
 
     def split_train_test(self):
         test_ratio = self.cfg_data["test_ratio"]

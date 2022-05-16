@@ -18,11 +18,11 @@ NGSIM_FILENAME_TO_ID = {
 
 
 class NGSIMDataset(Dataset):
-    def __init__(self, config):
+    def __init__(self, config, dataset_file):
         self.config = config
         self.data_path = config["data_path"]
-        self.data_list = config["data_list"]
-        self.num_files = len(self.data_list)
+        self.dataset_file = dataset_file
+        # self.num_files = len(self.data_list)
         self.act_keys = config["act_keys"]
         self.min_traj_length = config["min_traj_length"]
         # self.max_traj_length = max_traj_length
@@ -33,33 +33,34 @@ class NGSIMDataset(Dataset):
 
         self.database = h5py.File(self.data_path, 'r')
         self.feature_names = self.database.attrs["feature_names"]
-        self.input_dims = len(self.feature_names)
+        # self.input_dims = len(self.feature_names)
         self.act_idxs = [i for (i, n) in enumerate(self.feature_names) if n in self.act_keys]
 
         self.mapping_idx = {}
         self.data_statistics = {}
         idx = 0
-        for file_name in self.data_list:
-            file_id = NGSIM_FILENAME_TO_ID[file_name]
-            if file_id in self.database.keys():
-                traj_data = self.database[file_id]
-                self.data_statistics[file_id] = utils.extract_mean_std(traj_data) # save mean and std in each data file
-                n_trajs = traj_data.shape[0]
-                for i in range(n_trajs):
-                    length = np.sum(np.sum(traj_data[i], axis=1) != 0, axis=0)
-                    if length > self.min_traj_length:
-                        self.mapping_idx[idx] = file_id, i
-                        idx += 1
-            else:
-                raise ValueError('invalid key to trajectory data: {}'.format(file_name))
+        # for file_name in self.data_list:
+        file_id = NGSIM_FILENAME_TO_ID[dataset_file]
+        if file_id in self.database.keys():
+            self.all_traj_data = np.array(self.database[file_id], dtype=np.float32)
+            self.data_statistics = utils.extract_mean_std(self.all_traj_data)  # save mean and std in each data file
+            n_trajs = self.all_traj_data.shape[0]
+            for i in range(n_trajs):
+                length = np.sum(np.sum(np.abs(self.all_traj_data[i]), axis=1) != 0, axis=0)
+                if length > self.min_traj_length:
+                    self.mapping_idx[idx] = i #file_id, i
+                    idx += 1
+        else:
+            raise ValueError('invalid key to trajectory data: {}'.format(self.dataset_file))
 
     def __len__(self):
         return len(self.mapping_idx)
 
     def __getitem__(self, idx):
-        file_id, traj_id = self.mapping_idx[idx]
-        traj_data = self.database[file_id][traj_id]
-        observations = np.array(traj_data, dtype=np.float32)
+        # file_id, traj_id = self.mapping_idx[idx]
+        # traj_data = self.database[file_id][traj_id]
+        observations = self.all_traj_data[self.mapping_idx[idx]]
+        # observations = np.array(traj_data, dtype=np.float32)
         # actions = observations[:, self.act_idxs]
 
         # time_steps = np.arange(0, observations.shape[1])
@@ -80,7 +81,7 @@ class NGSIMDataset(Dataset):
         # mask_predicted_data = np.repeat(mask.astype(np.float32), actions.shape[1], axis=1)
 
         if self.normalize_data:
-            mean, std = self.data_statistics[file_id]
+            mean, std = self.data_statistics
             observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
             observations = (observations - mean) / std
             actions = utils.normalize_range(actions, self.act_low, self.act_high)
@@ -97,8 +98,9 @@ class NGSIMDataset(Dataset):
 
 
 if __name__ == '__main__':
-    ngsim = NGSIMDataset("/home/khangtg/Documents/course/AI618_unsupervised_and_generative_models/code/ngsim_env/data/trajectories/ngsim.h5",
-                         ['trajdata_i101_trajectories-0750am-0805am.txt'])
+    from config import get_cfg_defaults
+    cfg = get_cfg_defaults()
+    ngsim = NGSIMDataset(cfg.dataset)
     print(ngsim.data_statistics)
     for key, val in ngsim[10].items():
         print(key, val.shape)

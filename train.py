@@ -7,11 +7,10 @@ from torch.distributions.normal import Normal
 import numpy as np
 from loguru import logger
 
-from datasets import NGSIMLoader
+# from datasets import NGSIMLoader
 from models import create_LatentODE_model
 from trainer import Trainer
 from config import get_cfg_defaults
-from utils import lower_config
 
 
 # fix random seeds for reproducibility
@@ -45,8 +44,8 @@ def main(config):
     device, device_ids = prepare_device(config['n_gpus'])
 
     # setup data_loader instances
-    dataloader = NGSIMLoader(config["dataset"])
-    train_dataloader, test_dataloader = dataloader.split_train_test()
+    # dataloader = NGSIMLoader(config["dataset"])
+    # train_dataloader, test_dataloader = dataloader.split_train_test()
 
     # build model architecture, then print to console
     obsrv_std = torch.tensor([0.01]).to(device)
@@ -67,8 +66,8 @@ def main(config):
 
     trainer = Trainer(model, optimizer,
                       config=config, device=device,
-                      data_loader=train_dataloader,
-                      valid_data_loader=test_dataloader,
+                      # data_loader=train_dataloader,
+                      # valid_data_loader=test_dataloader,
                       lr_scheduler=lr_scheduler)
 
     trainer.train()
