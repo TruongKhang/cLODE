@@ -35,6 +35,7 @@ _C.trainer = CN()
 _C.trainer.epochs = 300
 # Number of workers for doing things
 _C.trainer.save_period = 1
+_C.trainer.log_step = 5
 _C.trainer.resume = None
 _C.trainer.lr = 0.01
 _C.trainer.weight_decay = 0.0

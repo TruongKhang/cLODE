@@ -18,7 +18,6 @@ class Trainer(BaseTrainer):
         self.valid_data_loader = valid_data_loader
         self.do_validation = self.valid_data_loader is not None
         self.lr_scheduler = lr_scheduler
-        self.log_step = 50 #int(np.sqrt(data_loader.batch_size))
 
         self.train_metrics = MetricTracker('loss', 'rmse')
         self.valid_metrics = MetricTracker('loss', 'rmse')
@@ -55,7 +54,7 @@ class Trainer(BaseTrainer):
             self.train_metrics.update("rmse", torch.sqrt(outputs["mse"]).item(), n=self.data_loader.batch_size)
 
             if batch_idx % self.log_step == 0:
-                logger.debug('Train Epoch: {} {} Loss: {:.6f} RMSE: {:.6f}'.format(
+                logger.info('Train Epoch: {} {} Loss: {:.6f} RMSE: {:.6f}'.format(
                     epoch,
                     self._progress(batch_idx),
                     self.train_metrics.avg('loss'),

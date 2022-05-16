@@ -49,7 +49,7 @@ class NGSIMDataset(Dataset):
                     length = np.sum(np.sum(traj_data[i], axis=1) != 0, axis=0)
                     if length > self.min_traj_length:
                         self.mapping_idx[idx] = file_id, i
-                    idx += 1
+                        idx += 1
             else:
                 raise ValueError('invalid key to trajectory data: {}'.format(file_name))
 
@@ -64,7 +64,7 @@ class NGSIMDataset(Dataset):
 
         # time_steps = np.arange(0, observations.shape[1])
         time_steps = np.where(np.sum(np.abs(observations), axis=1) > 0)[0]
-        n_sample_ts = int(np.random.rand() * len(time_steps)) + 2
+        n_sample_ts = int(np.random.rand() * len(time_steps)) + 4
         time_steps = time_steps[:n_sample_ts]
 
         observations = observations[time_steps, :]

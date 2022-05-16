@@ -183,7 +183,7 @@ def normalize_range(x, low, high):
 def split_data_extrap(data_dict):
     # device = get_device(data_dict["data"])
 
-    n_observed_tp = data_dict["time_steps"].shape[0] // 2
+    n_observed_tp = data_dict["time_steps"].shape[0] * 3 // 4
 
     split_dict = {"observed_data": data_dict["obs_data"][:, :n_observed_tp, :],
                   "observed_tp": data_dict["time_steps"][:n_observed_tp].clone(),

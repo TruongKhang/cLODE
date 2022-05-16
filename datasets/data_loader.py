@@ -56,11 +56,12 @@ class NGSIMLoader(object):
         test_sampler = SubsetRandomSampler(indices[:test_size])
         train_sampler = SubsetRandomSampler(indices[test_size:])
         # train_ngsim, test_ngsim = random_split(self.ngsim_dataset, [len(self.ngsim_dataset) - test_size, test_size])
-        train_dataloader = DataLoader(self.ngsim_dataset, batch_size=self.cfg_data["batch_size"], shuffle=True,
-                                      sampler=train_sampler, num_workers=4,
+        train_dataloader = DataLoader(self.ngsim_dataset, batch_size=self.cfg_data["batch_size"],
+                                      sampler=train_sampler, num_workers=16,
                                       collate_fn=variable_time_collate_fn, pin_memory=True)
-        test_dataloader = DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, sampler=test_sampler,
-                                     num_workers=4, collate_fn=variable_time_collate_fn, pin_memory=True)
+        test_dataloader = DataLoader(self.ngsim_dataset, batch_size=1, sampler=test_sampler,
+                                     num_workers=16, collate_fn=variable_time_collate_fn, pin_memory=True)
+        print(len(self.ngsim_dataset), len(train_dataloader), len(test_dataloader))
 
         return train_dataloader, test_dataloader
 
