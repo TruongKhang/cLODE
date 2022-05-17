@@ -46,6 +46,18 @@ _C.trainer.weight_decay = 0.01
 _C.trainer.lr_step_size = 50
 _C.trainer.lr_decay = 0.5
 
+_C.ngsim_env = CN()
+_C.ngsim_env.ngsim_data_dir = "~/.julia/packages/NGSIM/9OYUa/data"
+_C.ngsim_env.ngsim_filename = "trajdata_i101_trajectories-0750am-0805am.txt"
+_C.ngsim_env.env_H = 200
+_C.ngsim_env.env_primesteps = 50
+_C.ngsim_env.env_action_repeat = 1
+_C.ngsim_env.n_envs = 22 # number of agents
+_C.ngsim_env.remove_ngsim_veh = False
+_C.ngsim_env.env_reward = 0
+_C.ngsim_env.env_multiagent = True
+
+
 
 def get_cfg_defaults():
   """Get a yacs CfgNode object with default values for my_project."""
