@@ -1,13 +1,38 @@
-from yacs.config import CfgNode as CN
+import os
+import numpy as np
 import pandas as pd
 import torch
 from loguru import logger
 
 
-def lower_config(yacs_cfg):
-    if not isinstance(yacs_cfg, CN):
-        return yacs_cfg
-    return {k.lower(): lower_config(v) for k, v in yacs_cfg.items()}
+def write_trajectories(filepath, trajs):
+    np.savez(filepath, trajs=trajs)
+
+
+def load_trajectories(filepath):
+    return np.load(filepath)['trajs']
+
+
+def filename2label(fn):
+    s = fn.find('-') + 1
+    e = fn.rfind('_')
+    return fn[s:e]
+
+
+def load_trajs_labels(directory, files_to_use=(0, 1, 2, 3, 4, 5)):
+    filenames = [
+        'trajdata_i101_trajectories-0750am-0805am_trajectories.npz',
+        'trajdata_i101_trajectories-0805am-0820am_trajectories.npz',
+        'trajdata_i101_trajectories-0820am-0835am_trajectories.npz',
+        'trajdata_i80_trajectories-0400-0415_trajectories.npz',
+        'trajdata_i80_trajectories-0500-0515_trajectories.npz',
+        'trajdata_i80_trajectories-0515-0530_trajectories.npz'
+    ]
+    filenames = [filenames[i] for i in files_to_use]
+    labels = [filename2label(fn) for fn in filenames]
+    filepaths = [os.path.join(directory, fn) for fn in filenames]
+    trajs = [load_trajectories(fp) for fp in filepaths]
+    return trajs, labels
 
 
 def prepare_device(n_gpu_use):

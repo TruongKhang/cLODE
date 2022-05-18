@@ -125,12 +125,12 @@ class NGSIMDatasetEval(Dataset):
         self.test_data = self.test_data[:, :self.max_obs_length]
 
     def __len__(self):
-        return self.test_data.shape[1]
+        return self.test_data.shape[1] - 1
 
     def __getitem__(self, idx):
         observations = self.test_data[:, :(idx+1)]
 
-        time_steps = np.arange(observations.shape[1]+1)
+        time_steps = np.arange(observations.shape[1]+200, dtype=np.float32) / self.test_data.shape[1]
 
         if self.normalize_data:
             mean, std = self.data_statistics
@@ -141,11 +141,11 @@ class NGSIMDatasetEval(Dataset):
 
         n_observed_tp = observations.shape[1]
 
-        data_dict = {"observed_data": observations[:, :n_observed_tp, :],
-                     "observed_tp": time_steps[:n_observed_tp],
-                     "tp_to_predict": time_steps[n_observed_tp:]}
+        data_dict = {"observed_data": torch.from_numpy(observations[:, :n_observed_tp, :]).float(),
+                     "observed_tp": torch.from_numpy(time_steps[:n_observed_tp]).float(),
+                     "tp_to_predict": torch.from_numpy(time_steps[n_observed_tp:]).float()}
 
-        data_dict["observed_mask"] = np.ones_like(data_dict["observed_data"])
+        data_dict["observed_mask"] = torch.ones_like(data_dict["observed_data"])
 
         return data_dict
 
@@ -153,7 +153,7 @@ class NGSIMDatasetEval(Dataset):
 if __name__ == '__main__':
     from config import get_cfg_defaults
     cfg = get_cfg_defaults()
-    ngsim = NGSIMDataset(cfg.dataset)
+    ngsim = NGSIMDatasetEval(cfg.dataset, "trajdata_i101_trajectories-0750am-0805am.txt")
     print(ngsim.data_statistics)
-    for key, val in ngsim[10].items():
-        print(key, val.shape)
+    for idx in range(len(ngsim)):
+        print(idx, ngsim[idx]["observed_data"].shape)

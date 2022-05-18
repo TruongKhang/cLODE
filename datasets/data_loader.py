@@ -53,7 +53,7 @@ class NGSIMLoader(object):
     def get_test_dataloader(self):
         sampler = SequentialSampler(self.ngsim_dataset)
         return DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, sampler=sampler,
-                          num_workers=4, pin_memory=True)
+                          num_workers=4, pin_memory=True, collate_fn=lambda batch: batch[0])
 
     def split_train_test(self):
         test_ratio = self.cfg_data["test_ratio"]
@@ -71,6 +71,14 @@ class NGSIMLoader(object):
         print(len(self.ngsim_dataset), len(train_dataloader), len(test_dataloader))
 
         return train_dataloader, test_dataloader
+
+
+if __name__ == "__main__":
+    from config import get_cfg_defaults
+    cfg = get_cfg_defaults()
+    dataloader = NGSIMLoader(cfg.dataset, "trajdata_i101_trajectories-0750am-0805am.txt", mode="test").get_test_dataloader()
+    for idx, data_dict in enumerate(dataloader):
+        print(idx, data_dict["observed_data"].shape)
 
 
 
