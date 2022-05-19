@@ -99,10 +99,61 @@ class NGSIMDataset(Dataset):
                 "act_data": torch.from_numpy(actions).float()}
 
 
+class NGSIMDatasetEval(Dataset):
+    def __init__(self, config, dataset_file):
+        self.config = config
+        self.train_data_path = config["data_path"]
+        self.test_data_path = config["test_data_path"]
+        self.dataset_file = dataset_file
+        self.act_keys = config["act_keys"]
+        self.max_obs_length = config["max_obs_length"]
+        self.normalize_data = config["normalize_data"]
+        # self.act_low = config["act_low"]
+        # self.act_high = config["act_high"]
+        self.clip_std_multiple = config["clip_std_multiple"]
+
+        self.train_db = h5py.File(self.train_data_path, 'r')
+        self.test_db = h5py.File(self.test_data_path, 'r')
+
+        self.data_statistics = {}
+        file_id = NGSIM_FILENAME_TO_ID[dataset_file]
+
+        self.all_train_data = np.array(self.train_db[file_id], dtype=np.float32)
+        self.data_statistics = utils.extract_mean_std(self.all_train_data)  # save mean and std in each data file
+
+        self.test_data = np.array(self.test_db[file_id], dtype=np.float32)
+        self.test_data = self.test_data[:, :self.max_obs_length]
+
+    def __len__(self):
+        return self.test_data.shape[1] - 1
+
+    def __getitem__(self, idx):
+        observations = self.test_data[:, :(idx+1)]
+
+        time_steps = np.arange(observations.shape[1]+200, dtype=np.float32) / self.test_data.shape[1]
+
+        if self.normalize_data:
+            mean, std = self.data_statistics
+            assert mean.shape[-1] == observations.shape[-1]
+            assert std.shape[-1] == observations.shape[-1]
+            observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
+            observations = (observations - mean) / std
+
+        n_observed_tp = observations.shape[1]
+
+        data_dict = {"observed_data": torch.from_numpy(observations[:, :n_observed_tp, :]).float(),
+                     "observed_tp": torch.from_numpy(time_steps[:n_observed_tp]).float(),
+                     "tp_to_predict": torch.from_numpy(time_steps[n_observed_tp:]).float()}
+
+        data_dict["observed_mask"] = torch.ones_like(data_dict["observed_data"])
+
+        return data_dict
+
+
 if __name__ == '__main__':
     from config import get_cfg_defaults
     cfg = get_cfg_defaults()
-    ngsim = NGSIMDataset(cfg.dataset)
+    ngsim = NGSIMDatasetEval(cfg.dataset, "trajdata_i101_trajectories-0750am-0805am.txt")
     print(ngsim.data_statistics)
-    for key, val in ngsim[10].items():
-        print(key, val.shape)
+    for idx in range(len(ngsim)):
+        print(idx, ngsim[idx]["observed_data"].shape)

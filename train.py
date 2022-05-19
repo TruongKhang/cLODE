@@ -5,12 +5,12 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.distributions.normal import Normal
 import numpy as np
-from loguru import logger
 
 # from datasets import NGSIMLoader
 from models import create_LatentODE_model
 from trainer import Trainer
 from config import get_cfg_defaults
+from utils import prepare_device
 
 
 # fix random seeds for reproducibility
@@ -19,24 +19,6 @@ torch.manual_seed(SEED)
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
 np.random.seed(SEED)
-
-
-def prepare_device(n_gpu_use):
-    """
-    setup GPU device if available, move model into configured device
-    """
-    n_gpu = torch.cuda.device_count()
-    if n_gpu_use > 0 and n_gpu == 0:
-        logger.warning("Warning: There\'s no GPU available on this machine,"
-                       "training will be performed on CPU.")
-        n_gpu_use = 0
-    if n_gpu_use > n_gpu:
-        logger.warning("Warning: The number of GPU\'s configured to use is {}, but only {} are available "
-                       "on this machine.".format(n_gpu_use, n_gpu))
-        n_gpu_use = n_gpu
-    device = torch.device('cuda:0' if n_gpu_use > 0 else 'cpu')
-    list_ids = list(range(n_gpu_use))
-    return device, list_ids
 
 
 def main(config):

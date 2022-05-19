@@ -1,9 +1,9 @@
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, random_split, SubsetRandomSampler
+from torch.utils.data import DataLoader, random_split, SubsetRandomSampler, SequentialSampler
 
 from datasets.utils import split_and_subsample_batch
-from datasets.ngsim_dataset import NGSIMDataset
+from datasets.ngsim_dataset import NGSIMDataset, NGSIMDatasetEval
 
 
 def variable_time_collate_fn(batch):
@@ -43,10 +43,17 @@ def variable_time_collate_fn(batch):
 
 
 class NGSIMLoader(object):
-    def __init__(self, cfg_data, dataset_file):
-
+    def __init__(self, cfg_data, dataset_file, mode='train'):
         self.cfg_data = cfg_data
-        self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file)
+        if mode == 'train':
+            self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file)
+        else:
+            self.ngsim_dataset = NGSIMDatasetEval(cfg_data, dataset_file)
+
+    def get_test_dataloader(self):
+        sampler = SequentialSampler(self.ngsim_dataset)
+        return DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, sampler=sampler,
+                          num_workers=4, pin_memory=True, collate_fn=lambda batch: batch[0])
 
     def split_train_test(self):
         test_ratio = self.cfg_data["test_ratio"]
@@ -64,4 +71,15 @@ class NGSIMLoader(object):
         print(len(self.ngsim_dataset), len(train_dataloader), len(test_dataloader))
 
         return train_dataloader, test_dataloader
+
+
+if __name__ == "__main__":
+    from config import get_cfg_defaults
+    cfg = get_cfg_defaults()
+    dataloader = NGSIMLoader(cfg.dataset, "trajdata_i101_trajectories-0750am-0805am.txt", mode="test").get_test_dataloader()
+    for idx, data_dict in enumerate(dataloader):
+        print(idx, data_dict["observed_data"].shape)
+
+
+
 
