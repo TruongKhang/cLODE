@@ -42,11 +42,11 @@ class Trainer(BaseTrainer):
             logger.info("Training dataset {}".format(file))
             for batch_idx, batch_dict in enumerate(train_loader):
                 batch_dict = to_device(batch_dict, self.device)
-                wait_until_kl_inc = 10
+                wait_until_kl_inc = 5
                 if epoch < wait_until_kl_inc:
                     kl_coef = 0.
                 else:
-                    kl_coef = (1 - 0.99 ** (epoch - wait_until_kl_inc))
+                    kl_coef = (1 - 0.95 ** (epoch - wait_until_kl_inc))
 
                 self.optimizer.zero_grad()
                 outputs = self.model.compute_all_losses(batch_dict, n_traj_samples=3, kl_coef=kl_coef)
@@ -78,9 +78,10 @@ class Trainer(BaseTrainer):
 
             # if self.do_validation:
             log = self.train_metrics.result()
-            logger.info("Test on dataset {}".format(file))
-            val_log = self._valid_epoch(epoch, test_loader)
-            log.update(**{'val_' + k: v for k, v in val_log.items()})
+            if epoch%self.config["trainer"]["eval_freq"] == 0:
+                logger.info("Test on dataset {}".format(file))
+                val_log = self._valid_epoch(epoch, test_loader)
+                log.update(**{'val_' + k: v for k, v in val_log.items()})
             # print logged informations to the screen
             logger.info("training and test results for the dataset {}".format(file))
             for key, value in log.items():
@@ -88,8 +89,9 @@ class Trainer(BaseTrainer):
 
         logger.info("The final training and test results for all datasets")
         log = self.train_metrics.result()
-        val_log = self.valid_metrics.result()
-        log.update(**{'val_' + k: v for k, v in val_log.items()})
+        if epoch%self.config["trainer"]["eval_freq"] == 0:
+            val_log = self.valid_metrics.result()
+            log.update(**{'val_' + k: v for k, v in val_log.items()})
 
         if self.lr_scheduler is not None:
             self.lr_scheduler.step()
