@@ -8,7 +8,7 @@ import torch
 import torch.nn as nn
 
 from .modules import utils
-from modules.utils import get_device
+from .modules.utils import get_device
 from .modules.encoder_decoder import Encoder_z0_ODE_RNN, Encoder_z0_RNN, Decoder
 from .modules.base_vae import VAE_Baseline
 from .modules.diffeq_solver import DiffeqSolver
@@ -41,7 +41,7 @@ class LatentODE(VAE_Baseline):
         self.use_poisson_proc = use_poisson_proc
 
     def get_reconstruction(self, time_steps_to_predict, truth, truth_time_steps,
-                           mask=None, n_traj_samples=1, run_backwards=True, mode=None):
+                           mask=None, n_traj_samples=1, run_backwards=True):
 
         if isinstance(self.encoder_z0, Encoder_z0_ODE_RNN) or \
                 isinstance(self.encoder_z0, Encoder_z0_RNN):
@@ -130,31 +130,31 @@ class LatentODE(VAE_Baseline):
 
 def create_LatentODE_model(args, input_dim, z0_prior, obsrv_std, device,
                            classif_per_tp=False, n_labels=1):
+    # dim = args.latents
+    # if args.poisson:
+    #     lambda_net = utils.create_net(dim, input_dim,
+    #                                   n_layers=1, n_units=args.units, nonlinear=nn.Tanh)
+    #
+    #     # ODE function produces the gradient for latent state and for poisson rate
+    #     ode_func_net = utils.create_net(dim * 2, args.latents * 2,
+    #                                     n_layers=args.gen_layers, n_units=args.units, nonlinear=nn.Tanh)
+    #
+    #     gen_ode_func = ODEFunc_w_Poisson(
+    #         input_dim=input_dim,
+    #         latent_dim=args.latents * 2,
+    #         ode_func_net=ode_func_net,
+    #         lambda_net=lambda_net,
+    #         device=device).to(device)
+    # else:
     dim = args.latents
-    if args.poisson:
-        lambda_net = utils.create_net(dim, input_dim,
-                                      n_layers=1, n_units=args.units, nonlinear=nn.Tanh)
+    ode_func_net = utils.create_net(dim, args.latents,
+                                    n_layers=args.gen_layers, n_units=args.units, nonlinear=nn.Tanh)
 
-        # ODE function produces the gradient for latent state and for poisson rate
-        ode_func_net = utils.create_net(dim * 2, args.latents * 2,
-                                        n_layers=args.gen_layers, n_units=args.units, nonlinear=nn.Tanh)
-
-        gen_ode_func = ODEFunc_w_Poisson(
-            input_dim=input_dim,
-            latent_dim=args.latents * 2,
-            ode_func_net=ode_func_net,
-            lambda_net=lambda_net,
-            device=device).to(device)
-    else:
-        dim = args.latents
-        ode_func_net = utils.create_net(dim, args.latents,
-                                        n_layers=args.gen_layers, n_units=args.units, nonlinear=nn.Tanh)
-
-        gen_ode_func = ODEFunc(
-            input_dim=input_dim,
-            latent_dim=args.latents,
-            ode_func_net=ode_func_net,
-            device=device).to(device)
+    gen_ode_func = ODEFunc(
+        input_dim=input_dim,
+        latent_dim=args.latents,
+        ode_func_net=ode_func_net,
+        device=device).to(device)
 
     z0_diffeq_solver = None
     n_rec_dims = args.rec_dims
@@ -162,8 +162,8 @@ def create_LatentODE_model(args, input_dim, z0_prior, obsrv_std, device,
     gen_data_dim = input_dim
 
     z0_dim = args.latents
-    if args.poisson:
-        z0_dim += args.latents  # predict the initial poisson rate
+    # if args.poisson:
+    #     z0_dim += args.latents  # predict the initial poisson rate
 
     if args.z0_encoder == "odernn":
         ode_func_net = utils.create_net(n_rec_dims, n_rec_dims,
@@ -187,7 +187,7 @@ def create_LatentODE_model(args, input_dim, z0_prior, obsrv_std, device,
     else:
         raise Exception("Unknown encoder for Latent ODE model: " + args.z0_encoder)
 
-    decoder = Decoder(args.latents, gen_data_dim).to(device)
+    decoder = Decoder(args.latents, args.output_dim).to(device)
 
     diffeq_solver = DiffeqSolver(gen_data_dim, gen_ode_func, 'dopri5', args.latents,
                                  odeint_rtol=1e-3, odeint_atol=1e-4, device=device)
@@ -201,12 +201,12 @@ def create_LatentODE_model(args, input_dim, z0_prior, obsrv_std, device,
         z0_prior=z0_prior,
         device=device,
         obsrv_std=obsrv_std,
-        use_poisson_proc=args.poisson,
-        use_binary_classif=args.classif,
-        linear_classifier=args.linear_classif,
+        use_poisson_proc=False, #args.poisson,
+        use_binary_classif=False, #args.classif,
+        linear_classifier=False, #args.linear_classif,
         classif_per_tp=classif_per_tp,
         n_labels=n_labels,
-        train_classif_w_reconstr=(args.dataset == "physionet")
+        # train_classif_w_reconstr=(args.dataset == "physionet")
     ).to(device)
 
     return model

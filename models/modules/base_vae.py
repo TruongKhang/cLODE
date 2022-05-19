@@ -29,7 +29,7 @@ class VAE_Baseline(nn.Module):
         self.device = device
         self.n_labels = n_labels
 
-        self.obsrv_std = torch.Tensor([obsrv_std]).to(device)
+        self.obsrv_std = torch.tensor([obsrv_std]).to(device)
 
         self.z0_prior = z0_prior
         self.use_binary_classif = use_binary_classif
@@ -82,8 +82,8 @@ class VAE_Baseline(nn.Module):
         # Make predictions for all the points
         pred_y, info = self.get_reconstruction(batch_dict["tp_to_predict"],
                                                batch_dict["observed_data"], batch_dict["observed_tp"],
-                                               mask=batch_dict["observed_mask"], n_traj_samples=n_traj_samples,
-                                               mode=batch_dict["mode"])
+                                               mask=batch_dict["observed_mask"], n_traj_samples=n_traj_samples) #,
+                                               # mode=batch_dict["mode"])
 
         # print("get_reconstruction done -- computing likelihood")
         fp_mu, fp_std, fp_enc = info["first_point"]
@@ -114,7 +114,7 @@ class VAE_Baseline(nn.Module):
             batch_dict["data_to_predict"], pred_y,
             mask=batch_dict["mask_predicted_data"])
 
-        pois_log_likelihood = torch.Tensor([0.]).to(get_device(batch_dict["data_to_predict"]))
+        pois_log_likelihood = torch.tensor([0.]).to(get_device(batch_dict["data_to_predict"]))
         if self.use_poisson_proc:
             pois_log_likelihood = compute_poisson_proc_likelihood(
                 batch_dict["data_to_predict"], pred_y,

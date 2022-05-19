@@ -5,7 +5,7 @@
 
 import torch
 import torch.nn as nn
-import utils as utils
+import models.modules.utils as utils
 from .utils import get_device
 from torch.nn.modules.rnn import LSTM, GRU
 
