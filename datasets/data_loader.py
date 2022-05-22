@@ -58,13 +58,13 @@ def test_collate_fn(batch):
 
 
 class NGSIMLoader(object):
-    def __init__(self, cfg_data, dataset_file, mode='train'):
+    def __init__(self, cfg_data, dataset_file, mode='train', use_multi_agents=True):
         self.cfg_data = cfg_data
         self.dataset_file = dataset_file
         if mode == 'train':
             self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file)
         else:
-            self.ngsim_dataset = NGSIMDatasetEval(cfg_data, dataset_file)
+            self.ngsim_dataset = NGSIMDatasetEval(cfg_data, dataset_file, use_multi_agents=use_multi_agents)
 
     def get_test_dataloader(self, n_process=1):
         sampler = SequentialSampler(self.ngsim_dataset)

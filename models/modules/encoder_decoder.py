@@ -312,7 +312,11 @@ class Decoder(nn.Module):
         # decode data from latent space where we are solving an ODE back to the data space
 
         decoder = nn.Sequential(
-            nn.Linear(latent_dim, input_dim), )
+            nn.Linear(latent_dim, latent_dim),
+            nn.LayerNorm(latent_dim),
+            nn.LeakyReLU(inplace=True),
+            nn.Linear(latent_dim, input_dim),
+            nn.Tanh())
 
         utils.init_network_weights(decoder)
         self.decoder = decoder

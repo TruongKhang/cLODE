@@ -106,7 +106,7 @@ class NGSIMDataset(Dataset):
 
 
 class NGSIMDatasetEval(Dataset):
-    def __init__(self, config, dataset_file):
+    def __init__(self, config, dataset_file, use_multi_agents=True):
         self.config = config
         self.train_data_path = config["data_path"]
         self.test_data_path = config["test_data_path"]
@@ -125,12 +125,21 @@ class NGSIMDatasetEval(Dataset):
         file_id = NGSIM_FILENAME_TO_ID[dataset_file]
 
         self.all_train_data = np.array(self.train_db[file_id], dtype=np.float32)
-        self.data_statistics = utils.extract_mean_std(self.all_train_data)  # save mean and std in each data file
+        feature_names = self.train_db.attrs["feature_names"]
+        # self.input_dims = len(self.feature_names)
+        self.act_idxs = [i for (i, n) in enumerate(feature_names) if n in self.act_keys]
+        mean, std = utils.extract_mean_std(self.all_train_data)  # save mean and std in each data file
+        act_low = np.array(config["act_low"], dtype=np.float32)
+        act_high = np.array(config["act_high"], dtype=np.float32)
+        mean[:, self.act_idxs] = (act_low + act_high) / 2
+        std[:, self.act_idxs] = (act_high - act_low) / 2
+        self.data_statistics = mean, std
 
         self.test_data = np.array(self.test_db[file_id], dtype=np.float32)
         self.test_data = self.test_data[:, :self.max_obs_length]
-        # selected_ids = np.random.choice(self.test_data.shape[0], 1)
-        # self.test_data = self.test_data[selected_ids]
+        if not use_multi_agents:
+            selected_ids = np.random.choice(self.test_data.shape[0], 1)
+            self.test_data = self.test_data[selected_ids]
 
     def __len__(self):
         return self.test_data.shape[1] - 1
@@ -144,10 +153,12 @@ class NGSIMDatasetEval(Dataset):
             mean, std = self.data_statistics
             assert mean.shape[-1] == observations.shape[-1]
             assert std.shape[-1] == observations.shape[-1]
+            mean, std = np.expand_dims(mean, axis=0), np.expand_dims(std, axis=0)
             observations = np.clip(observations, - std * self.clip_std_multiple, std * self.clip_std_multiple)
             observations = (observations - mean) / std
-
-        # n_observed_tp = observations.shape[1]
+            actions = observations[:, :, self.act_idxs]
+            actions = np.clip(actions, -1, 1)
+            observations[:, :, self.act_idxs] = actions
 
         data_dict = {"observed_data": torch.from_numpy(observations).float(),
                      "time_steps": torch.from_numpy(time_steps).float()}

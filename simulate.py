@@ -16,13 +16,11 @@ matplotlib.use(backend)
 import matplotlib.pyplot as plt
 
 matplotlib.use('TkAgg')
-# from contexttimer import Timer
 
 import hgail.misc.simulation
 import hgail.misc.utils
 
 from utils import to_device, prepare_device, write_trajectories
-from models.modules.utils import linspace_vector
 from simulator.env import build_ngsim_env
 from models import create_LatentODE_model
 from datasets import NGSIMLoader
@@ -44,7 +42,7 @@ parser.add_argument('--max_obs_length', type=int, default=1000, help="number of 
 args = parser.parse_args()
 
 
-def online_predict(env, model, dataloader, config, device):
+def online_predict(env, model, dataloader, device, action_idxs):
     env_kwargs = {}
     _ = env.reset(**env_kwargs)
     predicted_trajs = []
@@ -76,7 +74,7 @@ def online_predict(env, model, dataloader, config, device):
                 time_steps_to_predict = time_steps[idt:(idt + 1)]
                 pred_actions, info = model.get_reconstruction(time_steps_to_predict, observed_data,
                                                               observed_time_steps, mask=observed_mask,
-                                                              n_traj_samples=10)
+                                                              n_traj_samples=5)
                 mean_actions, std_actions = pred_actions.mean(dim=0), pred_actions.std(dim=0)
                 mean_actions, std_actions = mean_actions.cpu().numpy(), std_actions.cpu().numpy()
 
@@ -84,6 +82,7 @@ def online_predict(env, model, dataloader, config, device):
                 agent_info = {"mean": mean_act, "log_std": np.log(std_act)}
 
                 nx, r, dones, env_info = env.step(mean_act)
+                nx[:, action_idxs] = np.clip(nx[:, action_idxs], -1, 1) # normalize observed actions in range [-1, 1]
                 traj.add(observed_data[:, -1].cpu().numpy(), mean_act, r, agent_info, env_info)
                 if any(dones): break
 
@@ -93,9 +92,9 @@ def online_predict(env, model, dataloader, config, device):
 
             _ = env.reset(**env_kwargs)
             traj = traj.flatten()
-            if step == 0:
-                print(np.mean(traj["rmse_pos"], axis=1))
-                exit(0)
+            # if step == 0:
+            #    print(np.mean(traj["rmse_pos"], axis=1))
+            #    exit(0)
             predicted_trajs.append(traj)
 
             end = time.time()
@@ -127,6 +126,7 @@ def collect_trajectories(config):
 
     logger.info("Initilize dataloader")
     dataloader = NGSIMLoader(config.dataset, config.ngsim_env.ngsim_filename, mode="test").get_test_dataloader()
+    action_idxs = dataloader.dataset.act_idxs
 
     # normalizing observation data when running simulation
     normalized_env = hgail.misc.utils.extract_normalizing_env(env)
@@ -137,12 +137,12 @@ def collect_trajectories(config):
         normalized_env._obs_var = obs_std ** 2
 
     logger.info("Predict trajectories")
-    traj = online_predict(env, model, dataloader, config, device)
+    traj = online_predict(env, model, dataloader, device, action_idxs)
     trajlist.append(traj)
 
     if not os.path.exists(args.exp_dir):
         os.makedirs(args.exp_dir)
-    output_filepath = os.path.join(args.exp_dir, '{}_{}agents_ode_traj.npz'.format(args.test_filename.split('.')[0],
+    output_filepath = os.path.join(args.exp_dir, '{}_5trajs_{}agents_ode_traj.npz'.format(args.test_filename.split('.')[0],
                                                                                    args.n_envs))
     write_trajectories(output_filepath, trajlist)
 
@@ -153,6 +153,6 @@ if __name__ == '__main__':
     cfg = get_cfg_defaults()
     cfg.merge_from_list(["dataset.test_data_path", args.test_datapath, "dataset.test_filename", args.test_filename,
                          "ngsim_env.ngsim_filename", args.ngsim_filename, "dataset.max_obs_length", args.max_obs_length,
-                         "ngsim_env.n_envs", args.n_envs])
+                         "ngsim_env.n_envs", args.n_envs, "ngsim_env.env_multiagent", args.use_multiagent])
     logger.info("config:{}".format(cfg))
     collect_trajectories(cfg)
