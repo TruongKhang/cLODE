@@ -16,13 +16,11 @@ matplotlib.use(backend)
 import matplotlib.pyplot as plt
 
 matplotlib.use('TkAgg')
-from contexttimer import Timer
 
 import hgail.misc.simulation
 import hgail.misc.utils
 
 from utils import to_device, prepare_device, write_trajectories
-from models.modules.utils import linspace_vector
 from simulator.env import build_ngsim_env
 from models import create_LatentODE_model
 from datasets import NGSIMLoader
@@ -44,7 +42,7 @@ parser.add_argument('--max_obs_length', type=int, default=1000, help="number of 
 args = parser.parse_args()
 
 
-def online_predict(env, model, dataloader, config, device):
+def online_predict(env, model, dataloader, device, action_idxs):
     env_kwargs = {}
     _ = env.reset(**env_kwargs)
     predicted_trajs = []
@@ -62,44 +60,54 @@ def online_predict(env, model, dataloader, config, device):
             # mask = data_dict["mask_predicted_data"]
 
             observed_data = data_dict["observed_data"]
-            observed_time_steps = data_dict["observed_tp"]
-            observed_mask = data_dict["observed_mask"]
-            time_steps_to_predict = data_dict["tp_to_predict"] #linspace_vector(time_steps[0], time_steps[-1], config.ngsim_env.env_H)
+            # observed_time_steps = data_dict["observed_tp"]
+            # observed_mask = data_dict["observed_mask"]
+            # time_steps_to_predict = data_dict["tp_to_predict"]
+            time_steps = data_dict["time_steps"]
+            # observed_time_steps = time_steps[[0]]
+            # time_steps_to_predict = time_steps[[1]]
+            # observed_mask = torch.ones_like(observed_data)
 
-            pred_actions, info = model.get_reconstruction(time_steps_to_predict, observed_data,
-                                                          observed_time_steps, mask=observed_mask,
-                                                          n_traj_samples=10)
+            traj = hgail.misc.simulation.Trajectory()
+            start_obs_ts = 0
+            for end_obs_ts in range(1, len(time_steps)):
+                if end_obs_ts > 10:
+                    start_obs_ts = end_obs_ts - 10
+                observed_time_steps = time_steps[start_obs_ts:end_obs_ts]
+                time_steps_to_predict = time_steps[end_obs_ts:(end_obs_ts + 1)]
+                observed_data_used = observed_data[:, start_obs_ts:end_obs_ts]
+                observed_mask = torch.ones_like(observed_data_used)
+                pred_actions, info = model.get_reconstruction(time_steps_to_predict, observed_data_used,
+                                                              observed_time_steps, mask=observed_mask,
+                                                              n_traj_samples=1)
+                mean_actions, std_actions = pred_actions.mean(dim=0), pred_actions.std(dim=0)
+                mean_actions, std_actions = mean_actions.cpu().numpy(), std_actions.cpu().numpy()
 
-            traj = ngsim_estimate(pred_actions, observed_data[:, -1], env, env_kwargs)
+                mean_act, std_act = mean_actions[:, 0], std_actions[:, 0]
+                agent_info = {"mean": mean_act, "log_std": np.log(std_act)}
+
+                nx, r, dones, env_info = env.step(mean_act)
+                nx[:, action_idxs] = np.clip(nx[:, action_idxs], -1, 1) # normalize observed actions in range [-1, 1]
+                traj.add(observed_data[:, -1].cpu().numpy(), mean_act, r, agent_info, env_info)
+                if any(dones): break
+
+                cur_obs = torch.from_numpy(nx).float().to(device)
+                observed_data = torch.cat((observed_data, cur_obs.unsqueeze(1)), dim=1)
+                # observed_mask = torch.ones_like(observed_data)
+
+            _ = env.reset(**env_kwargs)
+            traj = traj.flatten()
+            # if step == 0:
+            #    print(np.mean(traj["rmse_pos"], axis=1))
+            #    exit(0)
             predicted_trajs.append(traj)
 
             end = time.time()
-            avg += (start - end)
+            avg += (end - start)
 
     print("average of prediction time for each step: ", avg / len(dataloader))
 
     return predicted_trajs
-
-
-def ngsim_estimate(pred_actions, obs, env, env_kwargs):
-    traj = hgail.misc.simulation.Trajectory()
-
-    mean_actions, std_actions = pred_actions.mean(dim=0), pred_actions.std(dim=0)
-    mean_actions, std_actions = mean_actions.cpu().numpy(), std_actions.cpu().numpy()
-    n_time_steps = mean_actions.shape[1]
-    for i in range(n_time_steps):
-        mean_act, std_act = mean_actions[:, i], std_actions[:, i]
-        agent_info = {"mean": mean_act, "log_std": np.log(std_act)}
-
-        nx, r, dones, env_info = env.step(mean_act)
-        traj.add(obs, mean_act, r, agent_info, env_info)
-        if any(dones): break
-        obs = nx
-
-    # this should be delete and replaced
-    _ = env.reset(**env_kwargs)
-
-    return traj.flatten()
 
 
 def collect_trajectories(config):
@@ -123,12 +131,23 @@ def collect_trajectories(config):
 
     logger.info("Initilize dataloader")
     dataloader = NGSIMLoader(config.dataset, config.ngsim_env.ngsim_filename, mode="test").get_test_dataloader()
+    action_idxs = dataloader.dataset.act_idxs
+
+    # normalizing observation data when running simulation
+    normalized_env = hgail.misc.utils.extract_normalizing_env(env)
+    if normalized_env is not None:
+        obs_mean, obs_std = dataloader.dataset.data_statistics
+        print("mean observation shape: {}, std observation shape: {}".format(obs_mean.shape, obs_std.shape))
+        normalized_env._obs_mean = obs_mean
+        normalized_env._obs_var = obs_std ** 2
 
     logger.info("Predict trajectories")
-    traj = online_predict(env, model, dataloader, config, device)
+    traj = online_predict(env, model, dataloader, device, action_idxs)
     trajlist.append(traj)
 
-    output_filepath = os.path.join(args.exp_dir, '{}_{}agents_ode_traj.npz'.format(args.test_filename.split('.')[0],
+    if not os.path.exists(args.exp_dir):
+        os.makedirs(args.exp_dir)
+    output_filepath = os.path.join(args.exp_dir, '{}_1trajs_{}agents_10observed_time_steps_ode_traj.npz'.format(args.test_filename.split('.')[0],
                                                                                    args.n_envs))
     write_trajectories(output_filepath, trajlist)
 
@@ -138,6 +157,7 @@ def collect_trajectories(config):
 if __name__ == '__main__':
     cfg = get_cfg_defaults()
     cfg.merge_from_list(["dataset.test_data_path", args.test_datapath, "dataset.test_filename", args.test_filename,
-                         "ngsim_env.ngsim_filename", args.ngsim_filename, "dataset.max_obs_length", args.max_obs_length])
+                         "ngsim_env.ngsim_filename", args.ngsim_filename, "dataset.max_obs_length", args.max_obs_length,
+                         "ngsim_env.n_envs", args.n_envs, "ngsim_env.env_multiagent", args.use_multiagent])
     logger.info("config:{}".format(cfg))
     collect_trajectories(cfg)
