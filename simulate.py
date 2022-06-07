@@ -66,15 +66,20 @@ def online_predict(env, model, dataloader, device, action_idxs):
             time_steps = data_dict["time_steps"]
             # observed_time_steps = time_steps[[0]]
             # time_steps_to_predict = time_steps[[1]]
-            observed_mask = torch.ones_like(observed_data)
+            # observed_mask = torch.ones_like(observed_data)
 
             traj = hgail.misc.simulation.Trajectory()
-            for idt in range(1, len(time_steps)):
-                observed_time_steps = time_steps[:idt]
-                time_steps_to_predict = time_steps[idt:(idt + 1)]
-                pred_actions, info = model.get_reconstruction(time_steps_to_predict, observed_data,
+            start_obs_ts = 0
+            for end_obs_ts in range(1, len(time_steps)):
+                if end_obs_ts > 10:
+                    start_obs_ts = end_obs_ts - 10
+                observed_time_steps = time_steps[start_obs_ts:end_obs_ts]
+                time_steps_to_predict = time_steps[end_obs_ts:(end_obs_ts + 1)]
+                observed_data_used = observed_data[:, start_obs_ts:end_obs_ts]
+                observed_mask = torch.ones_like(observed_data_used)
+                pred_actions, info = model.get_reconstruction(time_steps_to_predict, observed_data_used,
                                                               observed_time_steps, mask=observed_mask,
-                                                              n_traj_samples=5)
+                                                              n_traj_samples=1)
                 mean_actions, std_actions = pred_actions.mean(dim=0), pred_actions.std(dim=0)
                 mean_actions, std_actions = mean_actions.cpu().numpy(), std_actions.cpu().numpy()
 
@@ -88,7 +93,7 @@ def online_predict(env, model, dataloader, device, action_idxs):
 
                 cur_obs = torch.from_numpy(nx).float().to(device)
                 observed_data = torch.cat((observed_data, cur_obs.unsqueeze(1)), dim=1)
-                observed_mask = torch.ones_like(observed_data)
+                # observed_mask = torch.ones_like(observed_data)
 
             _ = env.reset(**env_kwargs)
             traj = traj.flatten()
@@ -142,7 +147,7 @@ def collect_trajectories(config):
 
     if not os.path.exists(args.exp_dir):
         os.makedirs(args.exp_dir)
-    output_filepath = os.path.join(args.exp_dir, '{}_5trajs_{}agents_ode_traj.npz'.format(args.test_filename.split('.')[0],
+    output_filepath = os.path.join(args.exp_dir, '{}_1trajs_{}agents_10observed_time_steps_ode_traj.npz'.format(args.test_filename.split('.')[0],
                                                                                    args.n_envs))
     write_trajectories(output_filepath, trajlist)
 
