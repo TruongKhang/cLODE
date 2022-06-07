@@ -23,7 +23,7 @@ _C.dataset.normalize_data = True
 _C.dataset.act_low = [-4.0, -0.15]
 _C.dataset.act_high = [4.0, 0.15]
 _C.dataset.clip_std_multiple = 10
-_C.dataset.max_obs_length = 1000
+_C.dataset.max_obs_length = None
 
 _C.model = CN()
 _C.model.input_dim = 66

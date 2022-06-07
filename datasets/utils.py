@@ -150,10 +150,14 @@ def normalize_range(x, low, high):
 #     return data, time_steps, mask
 #
 #
-def split_data_extrap(data_dict):
+def split_and_subsample_batch(data_dict, observed_ratio=None):
     # device = get_device(data_dict["data"])
 
-    n_observed_tp = data_dict["time_steps"].shape[0] - 1
+    if observed_ratio is not None:
+        n_observed_tp = int(data_dict["time_steps"].shape[0] * observed_ratio)
+    else:
+        n_observed_tp = data_dict["time_steps"].shape[0] - 1
+
 
     split_dict = {"observed_data": data_dict["obs_data"][:, :n_observed_tp, :],
                   "observed_tp": data_dict["time_steps"][:n_observed_tp],
@@ -170,112 +174,3 @@ def split_data_extrap(data_dict):
 
     # split_dict["mode"] = "extrap"
     return split_dict
-
-
-# def split_data_interp(data_dict):
-#     # device = get_device(data_dict["data"])
-#
-#     split_dict = {"observed_data": data_dict["data"].clone(),
-#                   "observed_tp": data_dict["time_steps"].clone(),
-#                   "data_to_predict": data_dict["data"].clone(),
-#                   "tp_to_predict": data_dict["time_steps"].clone()}
-#
-#     split_dict["observed_mask"] = None
-#     split_dict["mask_predicted_data"] = None
-#     split_dict["labels"] = None
-#
-#     if "mask" in data_dict and data_dict["mask"] is not None:
-#         split_dict["observed_mask"] = data_dict["mask"].clone()
-#         split_dict["mask_predicted_data"] = data_dict["mask"].clone()
-#
-#     if ("labels" in data_dict) and (data_dict["labels"] is not None):
-#         split_dict["labels"] = data_dict["labels"].clone()
-#
-#     # split_dict["mode"] = "interp"
-#     return split_dict
-#
-#
-# def add_mask(data_dict):
-#     data = data_dict["observed_data"]
-#     mask = data_dict["observed_mask"]
-#
-#     if mask is None:
-#         mask = torch.ones_like(data)
-#
-#     data_dict["observed_mask"] = mask
-#     return data_dict
-
-
-# def subsample_observed_data(data_dict, n_tp_to_sample=None, n_points_to_cut=None):
-#     # n_tp_to_sample -- if not None, randomly subsample the time points. The resulting timeline has n_tp_to_sample points
-#     # n_points_to_cut -- if not None, cut out consecutive points on the timeline.  The resulting timeline has (N - n_points_to_cut) points
-#
-#     if n_tp_to_sample is not None:
-#         # Randomly subsample time points
-#         data, time_steps, mask = subsample_timepoints(
-#             data_dict["observed_data"].clone(),
-#             time_steps=data_dict["observed_tp"].clone(),
-#             mask=(data_dict["observed_mask"].clone() if data_dict["observed_mask"] is not None else None),
-#             n_tp_to_sample=n_tp_to_sample)
-#
-#     if n_points_to_cut is not None:
-#         # Remove consecutive time points
-#         data, time_steps, mask = cut_out_timepoints(
-#             data_dict["observed_data"].clone(),
-#             time_steps=data_dict["observed_tp"].clone(),
-#             mask=(data_dict["observed_mask"].clone() if data_dict["observed_mask"] is not None else None),
-#             n_points_to_cut=n_points_to_cut)
-#
-#     new_data_dict = {}
-#     for key in data_dict.keys():
-#         new_data_dict[key] = data_dict[key]
-#
-#     new_data_dict["observed_data"] = data.clone()
-#     new_data_dict["observed_tp"] = time_steps.clone()
-#     new_data_dict["observed_mask"] = mask.clone()
-#
-#     if n_points_to_cut is not None:
-#         # Cut the section in the data to predict as well
-#         # Used only for the demo on the periodic function
-#         new_data_dict["data_to_predict"] = data.clone()
-#         new_data_dict["tp_to_predict"] = time_steps.clone()
-#         new_data_dict["mask_predicted_data"] = mask.clone()
-#
-#     return new_data_dict
-
-
-def split_and_subsample_batch(data_dict):
-    # if data_type == "train":
-    #     # Training set
-    #     if args.extrap:
-    #         processed_dict = split_data_extrap(data_dict)
-    #     else:
-    #         processed_dict = split_data_interp(data_dict)
-    #
-    # else:
-    #     # Test set
-    #     if args.extrap:
-    #         processed_dict = split_data_extrap(data_dict, dataset=args.dataset)
-    #     else:
-    processed_dict = split_data_extrap(data_dict)
-
-    # add mask
-    # processed_dict = add_mask(processed_dict)
-
-    # Subsample points or cut out the whole section of the timeline
-    # if (args.sample_tp is not None) or (args.cut_tp is not None):
-    #     processed_dict = subsample_observed_data(processed_dict,
-    #                                              n_tp_to_sample=args.sample_tp,
-    #                                              n_points_to_cut=args.cut_tp)
-
-    # if (args.sample_tp is not None):
-    # 	processed_dict = subsample_observed_data(processed_dict,
-    # 		n_tp_to_sample = args.sample_tp)
-    return processed_dict
-
-
-# if __name__ == '__main__':
-#     out = load_data("/home/khangtg/Documents/course/AI618_unsupervised_and_generative_models/code/ngsim_env/data/trajectories/ngsim.h5",
-#               )
-#     print("observations ", out["observations"].shape, out["observations"][0])
-#     print("actions ", out["actions"].shape, out["actions"][0])

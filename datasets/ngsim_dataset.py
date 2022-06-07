@@ -30,6 +30,7 @@ class NGSIMDataset(Dataset):
         self.act_low = np.array(config["act_low"], dtype=np.float32)
         self.act_high = np.array(config["act_high"], dtype=np.float32)
         self.clip_std_multiple = config["clip_std_multiple"]
+        self.max_obs_length = config["max_obs_length"]
 
         self.database = h5py.File(self.data_path, 'r')
         self.feature_names = self.database.attrs["feature_names"]
@@ -68,8 +69,9 @@ class NGSIMDataset(Dataset):
 
         # time_steps = np.arange(0, observations.shape[1])
         time_steps = np.where(np.sum(np.abs(observations), axis=1) > 0)[0]
-        n_sample_ts = int(np.random.rand() * len(time_steps)) + 4
-        time_steps = time_steps[:n_sample_ts]
+        # n_sample_ts = int(np.random.rand() * len(time_steps)) + 4 if self.max_obs_length is None else self.max_obs_length
+        start_ts = np.random.randint(len(time_steps) - self.max_obs_length)
+        time_steps = time_steps[start_ts:(start_ts + self.max_obs_length)]
 
         observations = observations[time_steps, :]
         actions = observations[:, self.act_idxs]
@@ -136,7 +138,8 @@ class NGSIMDatasetEval(Dataset):
         self.data_statistics = mean, std
 
         self.test_data = np.array(self.test_db[file_id], dtype=np.float32)
-        self.test_data = self.test_data[:, :self.max_obs_length]
+        if self.max_obs_length is not None:
+            self.test_data = self.test_data[:, :self.max_obs_length]
         if not use_multi_agents:
             selected_ids = np.random.choice(self.test_data.shape[0], 1)
             self.test_data = self.test_data[selected_ids]

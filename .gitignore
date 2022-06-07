@@ -131,3 +131,4 @@ dmypy.json
 logs/
 *.h5
 pretrained/
+outputs/
