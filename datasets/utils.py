@@ -153,12 +153,12 @@ def normalize_range(x, low, high):
 def split_data_extrap(data_dict):
     # device = get_device(data_dict["data"])
 
-    n_observed_tp = data_dict["time_steps"].shape[0] * 3 // 4
+    n_observed_tp = data_dict["time_steps"].shape[0] - 1
 
     split_dict = {"observed_data": data_dict["obs_data"][:, :n_observed_tp, :],
-                  "observed_tp": data_dict["time_steps"][:n_observed_tp].clone(),
-                  "data_to_predict": data_dict["act_data"][:, n_observed_tp:, :],
-                  "tp_to_predict": data_dict["time_steps"][n_observed_tp:]}
+                  "observed_tp": data_dict["time_steps"][:n_observed_tp],
+                  "data_to_predict": data_dict["act_data"], #[:, n_observed_tp:, :],
+                  "tp_to_predict": data_dict["time_steps"]} #[n_observed_tp:]}
 
     # split_dict["observed_mask"] = None
     # split_dict["mask_predicted_data"] = None
@@ -166,7 +166,7 @@ def split_data_extrap(data_dict):
 
     # if ("mask" in data_dict) and (data_dict["mask"] is not None):
     split_dict["observed_mask"] = data_dict["mask"][:, :n_observed_tp].repeat(1, 1, data_dict["obs_data"].shape[-1])
-    split_dict["mask_predicted_data"] = data_dict["mask"][:, n_observed_tp:].repeat(1, 1, data_dict["act_data"].shape[-1])
+    split_dict["mask_predicted_data"] = data_dict["mask"].repeat(1, 1, data_dict["act_data"].shape[-1])
 
     # split_dict["mode"] = "extrap"
     return split_dict
