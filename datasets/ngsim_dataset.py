@@ -69,9 +69,13 @@ class NGSIMDataset(Dataset):
 
         # time_steps = np.arange(0, observations.shape[1])
         time_steps = np.where(np.sum(np.abs(observations), axis=1) > 0)[0]
-        # n_sample_ts = int(np.random.rand() * len(time_steps)) + 4 if self.max_obs_length is None else self.max_obs_length
+        n_sample_ts = int(np.random.rand() * self.max_obs_length) #if self.max_obs_length is None else self.max_obs_length
+        if n_sample_ts < 4:
+            n_sample_ts = 4
         start_ts = np.random.randint(len(time_steps) - self.max_obs_length)
-        time_steps = time_steps[start_ts:(start_ts + self.max_obs_length)]
+        time_steps = time_steps[start_ts:(start_ts + n_sample_ts)]
+        norm_time_steps = time_steps - time_steps[0]
+        assert np.sum(norm_time_steps < 0) == 0, "error in normalization of time_steps"
 
         observations = observations[time_steps, :]
         actions = observations[:, self.act_idxs]
@@ -103,7 +107,7 @@ class NGSIMDataset(Dataset):
         #         "observed_mask": np.expand_dims(observed_mask, axis=0),
         #         "mask_predicted_data": np.expand_dims(mask_predicted_data, axis=0)}
         return {"obs_data": torch.from_numpy(observations).float(),
-                "time_steps": torch.from_numpy(time_steps),
+                "time_steps": torch.from_numpy(norm_time_steps),
                 "act_data": torch.from_numpy(actions).float()}
 
 
