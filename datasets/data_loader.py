@@ -4,7 +4,7 @@ import torch
 from torch.utils.data import DataLoader, Subset, SubsetRandomSampler, SequentialSampler
 
 from datasets.utils import split_and_subsample_batch
-from datasets.ngsim_dataset import NGSIMDataset, NGSIMDatasetEval
+from datasets.ngsim_dataset import NGSIMDataset
 
 
 def variable_time_collate_fn(batch, max_time_step, observed_ratio=None):
@@ -30,7 +30,7 @@ def variable_time_collate_fn(batch, max_time_step, observed_ratio=None):
 
     combined_tt = combined_tt.float()
 
-    # if torch.max(combined_tt) != 0.:
+    #if torch.max(combined_tt) != 0.:
     combined_tt = combined_tt / max_time_step #torch.max(combined_tt)
 
     data_dict = {
@@ -58,24 +58,30 @@ def test_collate_fn(batch):
 
 
 class NGSIMLoader(object):
-    def __init__(self, cfg_data, dataset_file, mode='train', use_multi_agents=True):
+    def __init__(self, cfg_data, dataset_file, mode='train'):
         self.cfg_data = cfg_data
         self.dataset_file = dataset_file
-        if mode == 'train':
-            self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file)
-        else:
-            self.ngsim_dataset = NGSIMDatasetEval(cfg_data, dataset_file, use_multi_agents=use_multi_agents)
+        # if mode == 'train':
+        self.ngsim_dataset = NGSIMDataset(cfg_data, dataset_file, mode=mode)
+        # else:
+        #     self.ngsim_dataset = NGSIMDatasetEval(cfg_data, dataset_file, use_multi_agents=use_multi_agents)
+        # if multi_process is not None:
+        #     data_size = len(self.ngsim_dataset)
+        #     self.split_data_ids = np.array_split(np.arange(data_size), multi_process)
 
-    def get_test_dataloader(self, n_processes=1):
-        data_size = len(self.ngsim_dataset)
-        split_data_ids = np.array_split(np.arange(data_size), n_processes)
-        loaders = []
-        for data_ids in split_data_ids:
-            subset_dataset = Subset(self.ngsim_dataset, data_ids)
-            sampler = SequentialSampler(subset_dataset)
-            loaders.append(DataLoader(self.ngsim_dataset, batch_size=1,
-                                      shuffle=False, sampler=sampler, num_workers=2, collate_fn=lambda batch: batch[0]))
-        return loaders
+    # def get_test_dataloader(self, pid=None):
+    #     if pid is not None:
+    #         data_ids = self.split_data_ids[pid]
+    #         subset_dataset = Subset(self.ngsim_dataset, data_ids)
+    #         sampler = SequentialSampler(subset_dataset)
+    #         loader = DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, sampler=sampler, num_workers=2,
+    #                                 collate_fn=lambda batch: batch[0])
+    #     else:
+    #         loader = DataLoader(self.ngsim_dataset, batch_size=1, shuffle=False, num_workers=2,
+    #                                 collate_fn=lambda batch: batch[0])
+    #         # loaders.append(DataLoader(self.ngsim_dataset, batch_size=1,
+    #         #                           shuffle=False, sampler=sampler, num_workers=2, collate_fn=lambda batch: batch[0]))
+    #     return loader
 
     def split_train_test(self, observed_ratio=None, test_batch_size=1):
         test_ratio = self.cfg_data["test_ratio"]
@@ -88,9 +94,9 @@ class NGSIMLoader(object):
         # train_ngsim, test_ngsim = random_split(self.ngsim_dataset, [len(self.ngsim_dataset) - test_size, test_size])
         train_dataloader = DataLoader(self.ngsim_dataset, batch_size=self.cfg_data["batch_size"],
                                       sampler=train_sampler, num_workers=16,
-                                      collate_fn=lambda batch: variable_time_collate_fn(batch, 250), pin_memory=True)
-        test_dataloader = DataLoader(self.ngsim_dataset, batch_size=test_batch_size, sampler=test_sampler, num_workers=16,
-                                     collate_fn=lambda batch: variable_time_collate_fn(batch, 250, observed_ratio),
+                                      collate_fn=lambda batch: variable_time_collate_fn(batch, 1000), pin_memory=True)
+        test_dataloader = DataLoader(self.ngsim_dataset, batch_size=test_batch_size, sampler=test_sampler, num_workers=4,
+                                     collate_fn=lambda batch: variable_time_collate_fn(batch, 1000, observed_ratio),
                                      pin_memory=True)
         print(len(self.ngsim_dataset), len(train_dataloader), len(test_dataloader))
 
