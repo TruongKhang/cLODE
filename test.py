@@ -27,7 +27,8 @@ parser.add_argument('--n_envs', type=int, default=22, help="number of agents")
 parser.add_argument('--ckpt_path', type=str, default="pretrained model to predict actions")
 parser.add_argument('--max_obs_length', type=int, default=1000, help="number of simulations")
 parser.add_argument('--n_procs', type=int, default=1, help="number of processes to run simulation in parallel")
-parser.add_argument('--viz_obs_ratio', type=float, default=0.9, help="ratio of observed data for visualization")
+parser.add_argument('--viz_obs_ratio', type=float, default=1.0, help="ratio of observed data for visualization")
+parser.add_argument('--save_viz_figures', action="store_true", help="save visualizations")
 
 args = parser.parse_args()
 
@@ -93,9 +94,14 @@ if __name__ == '__main__':
     elif args.test_mode == 'visualization':
         logger.info("Initilize visualization dataloader")
         dataloader = NGSIMLoader(cfg.dataset, cfg.ngsim_env.ngsim_filename, mode='test')
-        _, test_dataloader = dataloader.split_train_test(observed_ratio=args.viz_obs_ratio, test_batch_size=5)
-        batch_data = next(iter(test_dataloader))
+        _, test_dataloader = dataloader.split_train_test(observed_ratio=args.viz_obs_ratio, test_batch_size=1)
+        n_traj_to_show = 6
+        list_batch_data = []
+        for idx, batch_data in enumerate(test_dataloader):
+            list_batch_data.append(to_device(batch_data, device))
+            if (idx+1) == n_traj_to_show:
+                break
         viz = Visualizations(device)
-        viz.draw_all_plots_one_dim(to_device(batch_data, device), model, dim_to_show=1)
+        viz.draw_all_plots_one_dim(list_batch_data, model, dim_to_show=0, save=args.save_viz_figures)
     else:
         raise "unknown test mode!"

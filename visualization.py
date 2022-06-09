@@ -116,11 +116,11 @@ class Visualizations():
         self.device = device
 
     def init_visualization(self):
-        self.fig = plt.figure(figsize=(12, 7), facecolor='white')
+        self.fig = plt.figure(figsize=(16, 8), facecolor='white')
 
         self.ax_traj = []
-        for i in range(1, 4):
-            self.ax_traj.append(self.fig.add_subplot(2, 2, i, frameon=False))
+        for i in range(1, 7):
+            self.ax_traj.append(self.fig.add_subplot(2, 3, i, frameon=False))
 
         # self.ax_density = []
         # for i in range(4,7):
@@ -129,7 +129,7 @@ class Visualizations():
         # self.ax_samples_same_traj = self.fig.add_subplot(3,3,7, frameon=False)
         # self.ax_latent_traj = self.fig.add_subplot(2, 3, 4, frameon=False)
         # self.ax_vector_field = self.fig.add_subplot(2, 3, 5, frameon=False)
-        self.ax_traj_from_prior = self.fig.add_subplot(2, 2, 4, frameon=False)
+        # self.ax_traj_from_prior = self.fig.add_subplot(2, 2, 4, frameon=False)
 
         self.plot_limits = {}
         plt.show(block=False)
@@ -143,83 +143,90 @@ class Visualizations():
         ax.set_xlim(xlim)
         ax.set_ylim(ylim)
 
-    def draw_all_plots_one_dim(self, data_dict, model,
+    def draw_all_plots_one_dim(self, list_data_dict, model,
                                plot_name="", save=False, experimentID=0., dim_to_show=0):
 
+        data_for_plotting, mask_for_plotting = [], []
+        time_steps_for_plotting, time_steps_to_predict_for_plotting = [], []
+        reconstructions_for_plotting, traj_from_prior_for_plotting = [], []
+        min_y, max_y = [], []
+        for sample_id, data_dict in enumerate(list_data_dict):
+            data = data_dict["data_to_predict"]
+            time_steps = data_dict["tp_to_predict"]
+            mask = data_dict["mask_predicted_data"]
 
-        data = data_dict["data_to_predict"]
-        time_steps = data_dict["tp_to_predict"]
-        mask = data_dict["mask_predicted_data"]
+            observed_data = data_dict["observed_data"]
+            observed_time_steps = data_dict["observed_tp"]
+            observed_mask = data_dict["observed_mask"]
 
-        observed_data = data_dict["observed_data"]
-        observed_time_steps = data_dict["observed_tp"]
-        observed_mask = data_dict["observed_mask"]
+            device = self.device  # time_steps.device #get_device(time_steps)
 
-        device = self.device #time_steps.device #get_device(time_steps)
+            time_steps_to_predict = linspace_vector(time_steps[0], time_steps[-1], 1000).to(device)
 
-        time_steps_to_predict = linspace_vector(time_steps[0], time_steps[-1], 100).to(device)
+            with torch.no_grad():
+                reconstructions, info = model.get_reconstruction(time_steps_to_predict,
+                                                                 observed_data, observed_time_steps, mask=observed_mask,
+                                                                 n_traj_samples=100)
+                traj_from_prior = model.sample_traj_from_prior(time_steps_to_predict, n_traj_samples=100)
+                # Since in this case n_traj = 1, n_traj_samples -- requested number of samples from the prior, squeeze n_traj dimension
+                # traj_from_prior = traj_from_prior.squeeze(1)
 
-        with torch.no_grad():
-            reconstructions, info = model.get_reconstruction(time_steps_to_predict,
-                                                             observed_data, observed_time_steps, mask=observed_mask,
-                                                             n_traj_samples=100)
-            traj_from_prior = model.sample_traj_from_prior(time_steps_to_predict, n_traj_samples=100)
-            # Since in this case n_traj = 1, n_traj_samples -- requested number of samples from the prior, squeeze n_traj dimension
-            traj_from_prior = traj_from_prior.squeeze(1)
+            # n_traj_to_show = 1
+            # plot only 10 trajectories
+            data_for_plotting.append(data) #[:n_traj_to_show]  # observed_data[:n_traj_to_show]
+            mask_for_plotting.append(mask) #[:n_traj_to_show]  # observed_mask[:n_traj_to_show]
+            reconstructions_for_plotting.append(reconstructions) #[:, :n_traj_to_show]  # .mean(dim=0)[:n_traj_to_show]
+            traj_from_prior_for_plotting.append(traj_from_prior)
+            time_steps_for_plotting.append(time_steps)
+            time_steps_to_predict_for_plotting.append(time_steps_to_predict)
 
-        n_traj_to_show = 3
-        # plot only 10 trajectories
-        data_for_plotting = data[:n_traj_to_show] #observed_data[:n_traj_to_show]
-        mask_for_plotting = mask[:n_traj_to_show] #observed_mask[:n_traj_to_show]
-        reconstructions_for_plotting = reconstructions[:, :n_traj_to_show] #.mean(dim=0)[:n_traj_to_show]
-        # reconstr_mean = reconstructions.mean(dim=0)[:n_traj_to_show]
-        # reconstr_std = reconstructions.std(dim=0)[:n_traj_to_show]
+            # dim_to_show = 0
+            max_y.append(max(data[:, :, dim_to_show].cpu().numpy().max(),
+                             reconstructions[:, :, :, dim_to_show].cpu().numpy().max()))
+            min_y.append(min(data[:, :, dim_to_show].cpu().numpy().min(),
+                             reconstructions[:, :, :, dim_to_show].cpu().numpy().min()))
 
-        # dim_to_show = 0
-        max_y = max(
-            data_for_plotting[:, :, dim_to_show].cpu().numpy().max(),
-            reconstructions_for_plotting[:, :, :, dim_to_show].cpu().numpy().max())
-        min_y = min(
-            data_for_plotting[:, :, dim_to_show].cpu().numpy().min(),
-            reconstructions_for_plotting[:, :, :, dim_to_show].cpu().numpy().min())
-
-        for traj_sampled_idx in range(reconstructions_for_plotting.shape[0]):
+        for traj_sampled_idx in range(reconstructions_for_plotting[0].shape[0]):
             ############################################
             # Plot reconstructions, true postrior and approximate posterior
-            generated_trajs = reconstructions_for_plotting[traj_sampled_idx]
 
             cmap = plt.cm.get_cmap('Set1')
-            for traj_id in range(n_traj_to_show):
+            for sample_id in range(len(data_for_plotting)):
+                generated_trajs = reconstructions_for_plotting[sample_id][traj_sampled_idx]
                 # Plot observations
-                plot_trajectories(self.ax_traj[traj_id],
-                                  data_for_plotting[traj_id].unsqueeze(0), time_steps,
-                                  mask=mask_for_plotting[traj_id].unsqueeze(0),
-                                  min_y=min_y, max_y=max_y, label="expert trajectory",
+                plot_trajectories(self.ax_traj[sample_id],
+                                  data_for_plotting[sample_id], time_steps_for_plotting[sample_id],
+                                  mask=mask_for_plotting[sample_id],
+                                  min_y=min_y[sample_id], max_y=max_y[sample_id], label="expert traj",
                                   marker='o', linestyle='', dim_to_show=dim_to_show,
                                   color=cmap(2))
                 # Plot reconstructions
-                plot_trajectories(self.ax_traj[traj_id],
-                                  generated_trajs[traj_id].unsqueeze(0), time_steps_to_predict,
-                                  min_y=min_y, max_y=max_y, title="Sample {} (data space)".format(traj_id),
-                                  dim_to_show=dim_to_show, label="generated trajectory",
+                plot_trajectories(self.ax_traj[sample_id],
+                                  generated_trajs, time_steps_to_predict_for_plotting[sample_id],
+                                  min_y=min_y[sample_id], max_y=max_y[sample_id], title="Sample {}",  # .format(traj_id),
+                                  dim_to_show=dim_to_show, label="traj from posterior",
                                   add_to_plot=True, marker='', color=cmap(3), linewidth=3)
+
                 # Plot mean, variance estimated over multiple samples from approx posterior
                 # plot_std(self.ax_traj[traj_id],
                 #          reconstructions_for_plotting[traj_id].unsqueeze(0), reconstr_std[traj_id].unsqueeze(0),
                 #          time_steps_to_predict, alpha=0.5, color=cmap(4))
                 # self.set_plot_lims(self.ax_traj[traj_id], "traj_" + str(traj_id))
 
-            ############################################
-            # Plot trajectories from prior
+                ############################################
+                # Plot trajectories from prior
 
-            # if isinstance(model, LatentODE):
-            # torch.manual_seed(1991)
-            # np.random.seed(1991)
+                # if isinstance(model, LatentODE):
+                # torch.manual_seed(1991)
+                # np.random.seed(1991)
 
-            plot_trajectories(self.ax_traj_from_prior, traj_from_prior[traj_sampled_idx].unsqueeze(0),
-                              time_steps_to_predict, marker='', linewidth=3)
-            self.ax_traj_from_prior.set_title("Samples from prior (data space)", pad=20)
-            # self.set_plot_lims(self.ax_traj_from_prior, "traj_from_prior")
+                plot_trajectories(self.ax_traj[sample_id], traj_from_prior_for_plotting[sample_id][traj_sampled_idx],
+                                  time_steps_to_predict_for_plotting[sample_id], add_to_plot=True, marker='', color=cmap(4),
+                                  min_y=min_y[sample_id], max_y=max_y[sample_id],
+                                  linewidth=3, label="traj from prior")
+                self.ax_traj[sample_id].legend(loc='lower right')
+                # self.ax_traj_from_prior.set_title("Samples from gaussian prior", pad=20)
+                # self.set_plot_lims(self.ax_traj_from_prior, "traj_from_prior")
             ################################################
 
             # Plot z0
@@ -276,5 +283,5 @@ class Visualizations():
             if save:
                 dirname = "plots/" + str(experimentID) + "/"
                 os.makedirs(dirname, exist_ok=True)
-                self.fig.savefig(dirname + plot_name)
+                self.fig.savefig("{}/{}_{}.png".format(dirname, plot_name, traj_sampled_idx))
             plt.pause(1)
