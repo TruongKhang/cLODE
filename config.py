@@ -6,14 +6,14 @@ _C.log_dir = "logs"
 _C.save_dir = "logs/checkpoints"
 
 _C.dataset = CN()
-_C.dataset.data_path = "/home/khangtg/Documents/lab/ode-flow/datasets/ngsim.h5"
-_C.dataset.list_dataset_files = ["trajdata_i101_trajectories-0750am-0805am.txt",
-                                 "trajdata_i101_trajectories-0805am-0820am.txt",
-                                 "trajdata_i101_trajectories-0820am-0835am.txt",
-                                 "trajdata_i80_trajectories-0400-0415.txt",
-                                 "trajdata_i80_trajectories-0500-0515.txt",
-                                 "trajdata_i80_trajectories-0515-0530.txt"]
-_C.dataset.test_data_path = "/home/khangtg/Documents/lab/ode-flow/datasets/ngsim_22agents.h5"
+_C.dataset.data_path = "datasets/ngsim.h5"
+_C.dataset.list_dataset_files = ["trajdata_i101_trajectories-0750am-0805am.txt"] #,
+                                 #"trajdata_i101_trajectories-0805am-0820am.txt",
+                                 #"trajdata_i101_trajectories-0820am-0835am.txt",
+                                 #"trajdata_i80_trajectories-0400-0415.txt",
+                                 #"trajdata_i80_trajectories-0500-0515.txt",
+                                 #"trajdata_i80_trajectories-0515-0530.txt"]
+_C.dataset.test_data_path = "datasets/ngsim_22agents.h5"
 _C.dataset.test_filename = None
 _C.dataset.act_keys = ['accel', 'turn_rate_global']
 _C.dataset.batch_size = 50
@@ -39,7 +39,7 @@ _C.model.observ_std = 0.01
 
 _C.trainer = CN()
 # Number of training epochs
-_C.trainer.epochs = 300
+_C.trainer.epochs = 100
 # Number of workers for doing things
 _C.trainer.save_period = 1
 _C.trainer.eval_freq = 5
@@ -47,7 +47,7 @@ _C.trainer.log_step = 10
 _C.trainer.resume = None
 _C.trainer.lr = 0.001
 _C.trainer.weight_decay = 0.0
-_C.trainer.lr_step_size = 20
+_C.trainer.lr_step_size = 10
 _C.trainer.lr_decay = 0.5
 
 _C.ngsim_env = CN()

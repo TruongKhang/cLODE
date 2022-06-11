@@ -5,7 +5,6 @@ from torch.utils.data import Dataset
 
 
 import datasets.utils as utils
-np.random.seed(1995)
 
 
 NGSIM_FILENAME_TO_ID = {
