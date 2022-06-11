@@ -1,3 +1,7 @@
 loguru
 yacs
 torchdiffeq==0.0.1
+scikit-learn
+tensorboardX
+pandas
+h5py
