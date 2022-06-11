@@ -9,13 +9,14 @@ import hgail.misc.utils
 from simulation.env import build_ngsim_env
 
 
-def online_predict(env, model, obs_data, device, action_idxs, num_ts=200, norm_ts=1000):
+def online_predict(env, model, obs_data, device, action_idxs, sim_max_obs=20, num_ts=200, norm_ts=1000):
     """
     :param env:
     :param model:
     :param obs_data: use each sample in this data to start a simulation. total of obsverations = total of simulations
     :param device:
     :param action_idxs:
+    :param sim_max_obs:
     :param norm_ts:
     :param num_ts:
     :return:
@@ -55,8 +56,8 @@ def online_predict(env, model, obs_data, device, action_idxs, num_ts=200, norm_t
             traj = hgail.misc.simulation.Trajectory()
             start_obs_ts = 0
             for end_obs_ts in range(1, time_steps.shape[0]):
-                if end_obs_ts > 10:
-                    start_obs_ts = end_obs_ts - 10
+                if end_obs_ts > sim_max_obs:
+                    start_obs_ts = end_obs_ts - sim_max_obs
                 observed_time_steps = time_steps[start_obs_ts:end_obs_ts]
                 time_steps_to_predict = time_steps[end_obs_ts:(end_obs_ts + 1)]
                 observed_data_used = observed_data[:, start_obs_ts:end_obs_ts]
@@ -93,7 +94,7 @@ def online_predict(env, model, obs_data, device, action_idxs, num_ts=200, norm_t
     return trajlist
 
 
-def collect_trajectories(config, model, data, device, pid=0):
+def collect_trajectories(config, model, data, device, pid=0, sim_max_obs=20):
 
     ngsim_env_args = config.ngsim_env
     logger.info("Build ngsim environment for simulation, pid = {}".format(pid))
@@ -111,7 +112,7 @@ def collect_trajectories(config, model, data, device, pid=0):
 
     # sim_dataloader = sim_dataloader.get_test_dataloader(pid)
     logger.info("Predict trajectories")
-    trajlist = online_predict(env, model, data["obs_data"], device, action_idxs)
+    trajlist = online_predict(env, model, data["obs_data"], device, action_idxs, sim_max_obs=sim_max_obs)
     # trajlist.append(traj)
 
     return trajlist

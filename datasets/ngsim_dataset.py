@@ -65,7 +65,7 @@ class NGSIMDataset(Dataset):
         observations = self.all_traj_data[self.mapping_idx[idx]]
 
         time_steps = np.where(np.sum(np.abs(observations), axis=1) > 0)[0]
-        n_sample_ts = int(np.random.rand() * len(time_steps)) + 4 if self.max_obs_length is not None else self.max_obs_length
+        n_sample_ts = int(np.random.rand() * len(time_steps)) + 4 if self.max_obs_length is None else self.max_obs_length
         # if self.mode == 'test':
         #     start_ts = np.random.randint(len(time_steps) - self.max_obs_length)
         # else:

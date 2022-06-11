@@ -132,3 +132,4 @@ logs/
 *.h5
 pretrained/
 outputs/
+plots/
