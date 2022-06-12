@@ -47,8 +47,8 @@ def plot_trajectories(ax, traj, time_steps, min_y=None, max_y=None, title="",
     if not add_to_plot:
         ax.cla()
     ax.set_title(title)
-    ax.set_xlabel('Time')
-    ax.set_ylabel('x')
+    ax.set_xlabel('Time (s)')
+    ax.set_ylabel('action (dim 0)')
 
     if min_y is not None:
         ax.set_ylim(bottom=min_y)
@@ -63,7 +63,7 @@ def plot_trajectories(ax, traj, time_steps, min_y=None, max_y=None, title="",
             m = mask[i].cpu().numpy()[:, dim_to_show]
             d = d[m == 1]
             ts = ts[m == 1]
-        ax.plot(ts, d, linestyle=linestyle, label=label, marker=marker, color=color, linewidth=linewidth)
+        ax.plot(ts * 100, d, linestyle=linestyle, label=label, marker=marker, color=color, linewidth=linewidth)
 
     if add_legend:
         ax.legend()

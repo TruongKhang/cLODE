@@ -7,13 +7,20 @@ import torch.multiprocessing as mp
 import time
 from loguru import logger
 
-
 from utils import prepare_device, write_trajectories, to_device
 from models import create_LatentODE_model
 from datasets import NGSIMLoader, NGSIMDatasetSim
 from config import get_cfg_defaults
 from simulation.simulate import collect_trajectories
 from visualization import Visualizations
+
+
+# fix random seeds for reproducibility
+SEED = 19951209
+torch.manual_seed(SEED)
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+np.random.seed(SEED)
 
 
 parser = argparse.ArgumentParser(description='validation settings')
@@ -29,6 +36,7 @@ parser.add_argument('--max_obs_length', type=int, default=1000, help="number of 
 parser.add_argument('--n_procs', type=int, default=1, help="number of processes to run simulation in parallel")
 parser.add_argument('--viz_obs_ratio', type=float, default=1.0, help="ratio of observed data for visualization")
 parser.add_argument('--save_viz_figures', action="store_true", help="save visualizations")
+parser.add_argument('--sim_max_obs', type=int, default=10, help="maximum number of observed data used in simulation")
 
 args = parser.parse_args()
 
@@ -70,7 +78,7 @@ if __name__ == '__main__':
             for pid in range(args.n_procs):
                 sub_obs_data = {"obs_data": obs_data[:, split_data_ids[pid]], "act_idxs": ngsim_loader.act_idxs,
                                 "data_statistics": ngsim_loader.data_statistics}
-                out = pool.apply_async(collect_trajectories, args=(cfg, model, sub_obs_data, device, pid))
+                out = pool.apply_async(collect_trajectories, args=(cfg, model, sub_obs_data, device, pid, args.sim_max_obs))
                 results.append(out)
             results = [out.get() for out in results]
             pool.close()
@@ -79,7 +87,7 @@ if __name__ == '__main__':
         else:
             data = {"obs_data": obs_data[:, :-1], "act_idxs": ngsim_loader.act_idxs,
                     "data_statistics": ngsim_loader.data_statistics}
-            results = collect_trajectories(cfg, model, data, device)
+            results = collect_trajectories(cfg, model, data, device, args, sim_max_obs=args.sim_max_obs)
         end_time = time.time()
         print("average of prediction time for each step of : ", (end_time - start_time) / (obs_data.shape[1] - 1))
         # results = pool.starmap(collect_trajectories, list_parallel_args)
@@ -87,9 +95,7 @@ if __name__ == '__main__':
 
         if not os.path.exists(args.exp_dir):
             os.makedirs(args.exp_dir)
-        output_filepath = os.path.join(args.exp_dir, '{}_{}agents_cLatentODE.npz'.format(
-            args.test_filename.split('.')[0],
-            args.n_envs))
+        output_filepath = os.path.join(args.exp_dir, '{}observations_{}agents_cLatentODE.npz'.format(args.sim_max_obs, args.n_envs))
         write_trajectories(output_filepath, results)
     elif args.test_mode == 'visualization':
         logger.info("Initilize visualization dataloader")
