@@ -27,7 +27,7 @@ To train our model with default parameters, simply run:
 We provide a simulation to evaluate our model compared to the baseline AGen. 
 The simulation environment is similar to `ngsim_env`. 
 
-    python test.py --test_mode simulation --test_datapath datasets/ngsim_22agents.h5 --ckpt_path pretrained/checkpoint-epoch100.ckpt --use_multi_agents --n_procs 4
+    python test.py --test_mode simulation --test_datapath datasets/ngsim_22agents.h5 --ckpt_path pretrained/checkpoint-epoch100.ckpt --use_multi_agents --n_procs 5 --sim_max_obs 20
 
 Our simulation takes around 6-7 hours to finish when only using 1 process.
 To speed up time, we recommend to use processes as much as possible depending on your hardware. 

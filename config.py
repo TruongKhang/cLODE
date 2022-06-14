@@ -6,13 +6,8 @@ _C.log_dir = "logs"
 _C.save_dir = "logs/checkpoints"
 
 _C.dataset = CN()
-_C.dataset.data_path = "datasets/ngsim.h5"
-_C.dataset.list_dataset_files = ["trajdata_i101_trajectories-0750am-0805am.txt"] #,
-                                 #"trajdata_i101_trajectories-0805am-0820am.txt",
-                                 #"trajdata_i101_trajectories-0820am-0835am.txt",
-                                 #"trajdata_i80_trajectories-0400-0415.txt",
-                                 #"trajdata_i80_trajectories-0500-0515.txt",
-                                 #"trajdata_i80_trajectories-0515-0530.txt"]
+_C.dataset.data_path = "datasets/ngsim_us101.h5"
+_C.dataset.list_dataset_files = ["trajdata_i101_trajectories-0750am-0805am.txt"]
 _C.dataset.test_data_path = "datasets/ngsim_22agents.h5"
 _C.dataset.test_filename = None
 _C.dataset.act_keys = ['accel', 'turn_rate_global']

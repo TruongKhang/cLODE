@@ -156,7 +156,7 @@ def split_and_subsample_batch(data_dict, observed_ratio=None):
     if observed_ratio is not None:
         n_observed_tp = int(data_dict["time_steps"].shape[0] * observed_ratio)
     else:
-        n_observed_tp = data_dict["time_steps"].shape[0] - 1
+        n_observed_tp = data_dict["time_steps"].shape[0] * 3 // 4
 
 
     split_dict = {"observed_data": data_dict["obs_data"][:, :n_observed_tp, :],
