@@ -53,3 +53,6 @@ To visualize some samples of generated trajectories, follow this command
 Simply run `nvidia-smi` while the program is running. The results might vary depending on which kind of NVIDIA card.
 
 The CUDA support for the baseline AGen is not installed in docker environment because of package conflict.
+
+## Acknowlegement
+The `models` part of this code is mainly based on [latent-ODE](https://github.com/YuliaRubanova/latent_ode). We specially thank the authors for useful code!
