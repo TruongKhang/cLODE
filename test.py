@@ -31,7 +31,7 @@ parser.add_argument('--test_filename', type=str, default="trajdata_i101-22agents
 parser.add_argument('--ngsim_filename', type=str, default="trajdata_i101_trajectories-0750am-0805am.txt")
 parser.add_argument('--use_multi_agents', action="store_true", help="running simulation for multi-agent")
 parser.add_argument('--n_envs', type=int, default=22, help="number of agents")
-parser.add_argument('--ckpt_path', type=str, default="pretrained model to predict actions")
+parser.add_argument('--ckpt_path', type=str, default='pretrained/checkpoint-epoch100.ckpt', help="pretrained model to predict actions")
 parser.add_argument('--max_obs_length', type=int, default=1000, help="number of simulations")
 parser.add_argument('--n_procs', type=int, default=1, help="number of processes to run simulation in parallel")
 parser.add_argument('--viz_obs_ratio', type=float, default=1.0, help="ratio of observed data for visualization")
